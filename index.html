@@ -105,10 +105,7 @@ input[type=text]::placeholder { color: var(--gray2); }
 
 <nav class="nav">
   <div class="logo">PICHA<span>+</span><span class="nav-badge">ADMIN</span></div>
-  <div style="display:flex;align-items:center;gap:0.6rem;">
-    <span class="nav-user" id="navUser"></span>
-    <button id="signOutBtn" onclick="signOut()" style="display:none;background:transparent;border:1px solid rgba(255,255,255,0.15);color:#888;font-size:0.72rem;padding:0.3rem 0.7rem;border-radius:100px;cursor:pointer;font-family:Inter,sans-serif;">Sign out</button>
-  </div>
+  <span class="nav-user" id="navUser"></span>
 </nav>
 
 <!-- GATE -->
@@ -138,16 +135,10 @@ input[type=text]::placeholder { color: var(--gray2); }
         <div class="step-header"><div class="step-num" id="s1n">1</div><div class="step-title">Upload Video to Backblaze</div></div>
         <label>Save as (file path)</label>
         <input type="text" id="fileNameInput" placeholder="movies/movie-title.mp4"/>
-        <label>Search file on device</label>
-        <div style="display:flex;gap:0.5rem;margin-bottom:0.8rem;">
-          <input type="text" id="fileSearch" placeholder="Type filename to filter..." oninput="filterFiles()" style="margin-bottom:0;flex:1;"/>
-          <button class="btn btn-gold" onclick="document.getElementById('fileInput').click()">Browse</button>
-        </div>
-        <div id="fileSearchResults" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:6px;margin-bottom:0.8rem;max-height:200px;overflow-y:auto;"></div>
-        <div class="upload-zone" id="uploadZoneDisplay">
-          <input type="file" id="fileInput" accept="video/*" style="display:none;"/>
+        <div class="upload-zone">
+          <input type="file" id="fileInput" accept="video/*"/>
           <div style="font-size:1.8rem;margin-bottom:0.4rem;">🎬</div>
-          <strong>Tap Browse or search above</strong>
+          <strong>Tap to select video</strong>
           <p>Any size — uploads directly to Backblaze</p>
         </div>
         <div id="selFileName" class="file-name"></div>
@@ -257,7 +248,6 @@ async function checkAdmin() {
       document.getElementById('gate').style.display = 'none';
       document.getElementById('panel').style.display = 'block';
       document.getElementById('navUser').textContent = data.name || data.email;
-      document.getElementById('signOutBtn').style.display = 'block';
     } else {
       document.getElementById('gateErr').textContent = '❌ Your account is not authorized as admin.';
       document.getElementById('gateErr').style.display = 'block';
@@ -269,7 +259,6 @@ async function checkAdmin() {
 }
 
 function signIn() { window.location.href = `${ADMIN_API}/auth/google`; }
-function signOut() { localStorage.removeItem('pichaplus_admin_session'); sessionToken = null; document.getElementById('panel').style.display='none'; document.getElementById('gate').style.display='block'; document.getElementById('signOutBtn').style.display='none'; document.getElementById('navUser').textContent=''; toast('Signed out'); }
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['add','movies','users'][i]===name));
@@ -277,18 +266,6 @@ function switchTab(name) {
   document.getElementById(`tab-${name}`).classList.add('active');
   if (name==='movies') loadMovies();
   if (name==='users') loadUsers();
-}
-
-function filterFiles() {
-  const query = document.getElementById('fileSearch').value.trim().toLowerCase();
-  const resultsEl = document.getElementById('fileSearchResults');
-  if (!query) { resultsEl.style.display = 'none'; return; }
-  // Show matches from recently selected files or just hint
-  resultsEl.style.display = 'block';
-  resultsEl.innerHTML = `<div style="padding:0.7rem 0.9rem;font-size:0.8rem;color:var(--gray);">
-    Type the filename above then tap <strong style="color:var(--white);">Browse</strong> to find it on your device.<br/>
-    <span style="font-size:0.72rem;color:#555;">Tip: On Android, use the search icon 🔍 in the file picker after tapping Browse.</span>
-  </div>`;
 }
 
 document.getElementById('fileInput').addEventListener('change', e => {
@@ -322,7 +299,7 @@ async function uploadVideo() {
       xhr.open('POST', urlData.uploadUrl);
       xhr.setRequestHeader('Authorization', urlData.authorizationToken);
       xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
-      xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+      xhr.setRequestHeader('Content-Type', 'video/mp4');
       xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
       xhr.upload.onprogress = e => {
         if (e.lengthComputable) {
