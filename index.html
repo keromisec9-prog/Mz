@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Picha+ Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0a; --bg2: #141414; --bg3: #1e1e1e;
+  --gold: #e5b93c; --gold2: #f0cd70;
+  --white: #fff; --gray: #888; --gray2: #444;
+  --red: #e53935; --green: #43a047;
+  --border: rgba(255,255,255,0.08);
+}
+body { background: var(--bg); color: var(--white); font-family: 'Inter', sans-serif; min-height: 100vh; padding-bottom: 4rem; }
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 0 1.2rem; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+.logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; }
+.logo span { color: var(--gold); }
+.nav-badge { background: var(--gold); color: #000; font-size: 0.6rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 100px; letter-spacing: 0.08em; margin-left: 0.5rem; }
+.nav-user { font-size: 0.78rem; color: var(--gray); }
+.tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg2); position: sticky; top: 52px; z-index: 99; }
+.tab { flex: 1; padding: 0.8rem; text-align: center; font-size: 0.8rem; font-weight: 600; color: var(--gray); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+.main { max-width: 600px; margin: 0 auto; padding: 1.5rem 1rem; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+#gate { text-align: center; padding: 4rem 1rem; }
+.btn-google { display: inline-flex; align-items: center; gap: 0.7rem; background: var(--white); color: #111; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; border: none; }
+.btn-google svg { width: 20px; height: 20px; }
+.step { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; margin-bottom: 1rem; }
+.step-header { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1rem; }
+.step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--gold); color: #000; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.3s; }
+.step-title { font-weight: 600; font-size: 0.9rem; }
+.upload-zone { border: 2px dashed var(--gray2); border-radius: 8px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+.upload-zone:hover { border-color: var(--gold); background: rgba(229,185,60,0.04); }
+.upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.upload-zone p { font-size: 0.82rem; color: var(--gray); margin-top: 0.3rem; }
+.upload-zone strong { color: var(--white); font-size: 0.88rem; }
+.file-name { font-size: 0.78rem; color: var(--gold); margin-top: 0.5rem; word-break: break-all; }
+.progress-wrap { margin-top: 0.8rem; display: none; }
+.progress-track { background: var(--bg3); border-radius: 100px; height: 5px; overflow: hidden; margin-bottom: 0.4rem; }
+.progress-fill { height: 100%; background: var(--gold); border-radius: 100px; width: 0%; transition: width 0.2s; }
+.progress-label { font-size: 0.75rem; color: var(--gray); }
+label { display: block; font-size: 0.72rem; color: var(--gray); margin-bottom: 0.35rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+input[type=text] { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 0.65rem 0.85rem; color: var(--white); font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none; transition: border 0.2s; margin-bottom: 0.8rem; }
+input[type=text]:focus { border-color: var(--gold); }
+input[type=text]::placeholder { color: var(--gray2); }
+.btn { padding: 0.65rem 1.1rem; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 0.83rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+.btn-gold { background: var(--gold); color: #000; }
+.btn-gold:hover { background: var(--gold2); }
+.btn-gold:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-full { width: 100%; }
+.btn-lg { padding: 0.85rem; font-size: 0.9rem; }
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.75rem; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-outline { background: transparent; color: var(--white); border: 1px solid var(--border); }
+.search-row { display: flex; gap: 0.5rem; margin-bottom: 0; }
+.search-row input { margin-bottom: 0; flex: 1; }
+.poster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.8rem; }
+.poster-opt { position: relative; aspect-ratio: 2/3; border-radius: 6px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border 0.15s; }
+.poster-opt:hover { border-color: var(--gold); }
+.poster-opt.sel { border-color: var(--gold); }
+.poster-opt.sel::after { content: '✓'; position: absolute; top: 0.3rem; right: 0.3rem; background: var(--gold); color: #000; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; }
+.poster-opt img { width: 100%; height: 100%; object-fit: cover; }
+.poster-label { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 0.6rem 0.3rem 0.3rem; font-size: 0.6rem; line-height: 1.3; }
+.movie-preview { display: flex; gap: 0.8rem; background: var(--bg3); border-radius: 8px; padding: 0.8rem; margin-top: 0.8rem; }
+.movie-preview img { width: 60px; height: 90px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.preview-info h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem; }
+.preview-info p { font-size: 0.72rem; color: var(--gray); line-height: 1.5; }
+.tag { background: rgba(229,185,60,0.15); color: var(--gold); font-size: 0.6rem; padding: 0.12rem 0.4rem; border-radius: 100px; font-weight: 600; display: inline-block; margin-right: 0.3rem; margin-bottom: 0.3rem; }
+.vj-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; margin-bottom: 0.8rem; }
+.vj-pill { background: var(--bg3); border: 1px solid var(--border); border-radius: 100px; padding: 0.35rem 0.8rem; font-size: 0.75rem; cursor: pointer; transition: all 0.15s; color: var(--gray); }
+.vj-pill.active { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 600; }
+.status { padding: 0.7rem 0.9rem; border-radius: 6px; font-size: 0.8rem; margin-top: 0.7rem; display: none; }
+.status.success { background: rgba(67,160,71,0.15); border: 1px solid rgba(67,160,71,0.3); color: #81c784; }
+.status.error { background: rgba(229,57,53,0.15); border: 1px solid rgba(229,57,53,0.3); color: #ef9a9a; }
+.user-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem; margin-bottom: 0.7rem; display: flex; align-items: center; gap: 0.8rem; }
+.user-info { flex: 1; min-width: 0; }
+.user-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-email { font-size: 0.72rem; color: var(--gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-plan { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 100px; display: inline-block; margin-top: 0.2rem; }
+.plan-free { background: rgba(136,136,136,0.2); color: var(--gray); }
+.plan-premium { background: rgba(229,185,60,0.2); color: var(--gold); }
+.movie-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.8rem; }
+.movie-card img { width: 40px; height: 60px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.movie-card-info { flex: 1; min-width: 0; }
+.movie-card-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.movie-card-meta { font-size: 0.7rem; color: var(--gray); }
+.spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(0,0,0,0.2); border-top-color: #000; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: #222; color: var(--white); padding: 0.65rem 1.3rem; border-radius: 100px; font-size: 0.8rem; z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,0.4); white-space: nowrap; }
+.toast.success { background: var(--green); }
+.toast.error { background: var(--red); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; display: none; align-items: center; justify-content: center; padding: 1rem; }
+.modal-overlay.active { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 340px; }
+.modal h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+.modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="logo">PICHA<span>+</span><span class="nav-badge">ADMIN</span></div>
+  <span class="nav-user" id="navUser"></span>
+</nav>
+
+<!-- GATE -->
+<div id="gate">
+  <div style="font-size:3rem;margin-bottom:1rem;">🎬</div>
+  <h2 style="font-family:'Bebas Neue',sans-serif;font-size:2rem;margin-bottom:0.5rem;">Admin Panel</h2>
+  <p style="color:var(--gray);font-size:0.85rem;margin-bottom:2rem;">Sign in with an authorized Google account.</p>
+  <button class="btn-google" onclick="signIn()">
+    <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+    Sign in with Google
+  </button>
+  <div id="gateErr" style="color:#ef9a9a;font-size:0.8rem;margin-top:1rem;display:none;"></div>
+</div>
+
+<!-- PANEL -->
+<div id="panel" style="display:none;">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('add')">➕ Add Movie</div>
+    <div class="tab" onclick="switchTab('movies')">🎬 Movies</div>
+    <div class="tab" onclick="switchTab('users')">👥 Users</div>
+  </div>
+  <div class="main">
+
+    <!-- ADD MOVIE -->
+    <div class="tab-content active" id="tab-add">
+      <div class="step">
+        <div class="step-header"><div class="step-num" id="s1n">1</div><div class="step-title">Upload Video to Backblaze</div></div>
+        <label>Save as (file path)</label>
+        <input type="text" id="fileNameInput" placeholder="movies/movie-title.mp4"/>
+        <div class="upload-zone">
+          <input type="file" id="fileInput" accept="video/*"/>
+          <div style="font-size:1.8rem;margin-bottom:0.4rem;">🎬</div>
+          <strong>Tap to select video</strong>
+          <p>Any size — uploads directly to Backblaze</p>
+        </div>
+        <div id="selFileName" class="file-name"></div>
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-label" id="progressLabel">0%</div>
+        </div>
+        <div class="status" id="uploadStatus"></div>
+        <button class="btn btn-gold btn-full" style="margin-top:0.8rem;" id="uploadBtn" onclick="uploadVideo()">Upload to Backblaze</button>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><div class="step-num" id="s2n">2</div><div class="step-title">Find on TMDB</div></div>
+        <div class="search-row">
+          <input type="text" id="tmdbQuery" placeholder="Search movie title..." onkeydown="if(event.key==='Enter')searchTMDB()"/>
+          <button class="btn btn-gold" id="searchBtn" onclick="searchTMDB()">Search</button>
+        </div>
+        <div class="poster-grid" id="posterGrid"></div>
+        <div id="moviePreview"></div>
+        <div class="status" id="tmdbStatus"></div>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><div class="step-num" id="s3n">3</div><div class="step-title">Select VJ & Add</div></div>
+        <label>VJ Name</label>
+        <div class="vj-row">
+          <div class="vj-pill active" onclick="selectVJ('VJ Junior',this)">VJ Junior</div>
+          <div class="vj-pill" onclick="selectVJ('VJ Ice P',this)">VJ Ice P</div>
+          <div class="vj-pill" onclick="selectVJ('VJ Uncle T',this)">VJ Uncle T</div>
+          <div class="vj-pill" onclick="selectVJ('VJ Emmy',this)">VJ Emmy</div>
+          <div class="vj-pill" onclick="selectVJ('VJ Kevin',this)">VJ Kevin</div>
+          <div class="vj-pill" onclick="selectVJ('VJ Shield',this)">VJ Shield</div>
+          <div class="vj-pill" onclick="selectVJ('VJ Mark',this)">VJ Mark</div>
+          <div class="vj-pill" onclick="selectVJ('VJ CB',this)">VJ CB</div>
+        </div>
+        <label>Custom VJ (optional)</label>
+        <input type="text" id="vjCustom" placeholder="Type a different VJ name..."/>
+        <button class="btn btn-gold btn-full btn-lg" id="addBtn" onclick="addMovie()">✅ Add Movie to Picha+</button>
+        <div class="status" id="addStatus"></div>
+      </div>
+    </div>
+
+    <!-- MOVIES -->
+    <div class="tab-content" id="tab-movies">
+      <div id="moviesList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
+    </div>
+
+    <!-- USERS -->
+    <div class="tab-content" id="tab-users">
+      <div id="usersList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- GRANT MODAL -->
+<div class="modal-overlay" id="grantModal">
+  <div class="modal">
+    <h3>Grant Subscription</h3>
+    <p style="font-size:0.82rem;color:var(--gray);margin-bottom:1rem;" id="grantUserName"></p>
+    <label>Number of Days</label>
+    <input type="text" id="grantDays" placeholder="e.g. 30"/>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-full" onclick="closeGrant()">Cancel</button>
+      <button class="btn btn-gold btn-full" onclick="confirmGrant()">Grant Access</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ADMIN_API = 'https://picha-admin-worker.kerosoftz522.workers.dev';
+const MAIN_API  = 'https://picha-plus-worker.kerosoftz522.workers.dev';
+const TMDB_KEY  = '3ba29e8934b640ae467a31241cd2f0fd';
+
+let sessionToken = localStorage.getItem('pichaplus_session');
+let selectedMovie = null;
+let uploadedFileName = null;
+let selectedVJ = 'VJ Junior';
+let grantUserId = null;
+
+window.addEventListener('load', async () => {
+  const params = new URLSearchParams(window.location.search);
+  const tok = params.get('session');
+  if (tok) {
+    sessionToken = tok;
+    localStorage.setItem('pichaplus_session', tok);
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+  if (sessionToken) await checkAdmin();
+});
+
+async function checkAdmin() {
+  try {
+    const res = await fetch(`${ADMIN_API}/check`, { headers: { 'X-Session-Token': sessionToken } });
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('panel').style.display = 'block';
+      document.getElementById('navUser').textContent = data.name || data.email;
+    } else {
+      document.getElementById('gateErr').textContent = '❌ Your account is not authorized as admin.';
+      document.getElementById('gateErr').style.display = 'block';
+    }
+  } catch {
+    document.getElementById('gateErr').textContent = '❌ Could not connect to server.';
+    document.getElementById('gateErr').style.display = 'block';
+  }
+}
+
+function signIn() { window.location.href = `${MAIN_API}/auth/google`; }
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['add','movies','users'][i]===name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  if (name==='movies') loadMovies();
+  if (name==='users') loadUsers();
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('selFileName').textContent = `📁 ${file.name}`;
+  if (!document.getElementById('fileNameInput').value) {
+    const slug = file.name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-\.]/g,'').replace(/\.(mp4|mkv|avi)$/,'')+'.mp4';
+    document.getElementById('fileNameInput').value = `movies/${slug}`;
+  }
+});
+
+async function uploadVideo() {
+  const file = document.getElementById('fileInput').files[0];
+  const fileName = document.getElementById('fileNameInput').value.trim();
+  if (!file) return toast('Please select a video file first', 'error');
+  if (!fileName) return toast('Please enter a file path', 'error');
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Getting upload URL...';
+  try {
+    const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
+      headers: { 'X-Session-Token': sessionToken }
+    });
+    const urlData = await urlRes.json();
+    if (!urlRes.ok) throw new Error(urlData.error || 'Failed to get upload URL');
+    document.getElementById('progressWrap').style.display = 'block';
+    btn.innerHTML = '<span class="spin"></span> Uploading...';
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', urlData.uploadUrl);
+      xhr.setRequestHeader('Authorization', urlData.authorizationToken);
+      xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+      xhr.setRequestHeader('Content-Type', 'video/mp4');
+      xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded/e.total)*100);
+          document.getElementById('progressFill').style.width = pct+'%';
+          document.getElementById('progressLabel').textContent = `${pct}% — ${(e.loaded/1024/1024).toFixed(1)} MB / ${(e.total/1024/1024).toFixed(1)} MB`;
+        }
+      };
+      xhr.onload = () => xhr.status===200 ? resolve() : reject(new Error('Upload failed: '+xhr.status));
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(file);
+    });
+    uploadedFileName = fileName;
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('progressLabel').textContent = '✅ Upload complete!';
+    document.getElementById('s1n').style.background = 'var(--green)';
+    showStatus('uploadStatus', '✅ Uploaded successfully!', 'success');
+    btn.innerHTML = '✅ Uploaded!';
+    const guess = fileName.split('/').pop().replace(/\.mp4$/i,'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    document.getElementById('tmdbQuery').value = guess;
+    toast('Upload done! Now search for the movie 👇', 'success');
+  } catch(e) {
+    showStatus('uploadStatus', '❌ '+e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Upload to Backblaze';
+  }
+}
+
+async function searchTMDB() {
+  const query = document.getElementById('tmdbQuery').value.trim();
+  if (!query) return;
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${TMDB_KEY}`);
+    const data = await res.json();
+    const results = (data.results||[]).slice(0,9);
+    if (!results.length) {
+      showStatus('tmdbStatus','❌ No results found.','error');
+      document.getElementById('posterGrid').innerHTML = '';
+    } else {
+      document.getElementById('tmdbStatus').style.display = 'none';
+      window._tmdbResults = results;
+      document.getElementById('posterGrid').innerHTML = results.map((m,i) => {
+        const poster = m.poster_path ? `https://image.tmdb.org/t/p/w342${m.poster_path}` : null;
+        const year = m.release_date ? m.release_date.slice(0,4) : '';
+        return `<div class="poster-opt" onclick="selectMovie(${i})" data-idx="${i}">
+          ${poster ? `<img src="${poster}" loading="lazy"/>` : `<div style="background:#222;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">🎬</div>`}
+          <div class="poster-label">${esc(m.title)} ${year?`<span style="color:#aaa">(${year})</span>`:''}</div>
+        </div>`;
+      }).join('');
+    }
+  } catch { showStatus('tmdbStatus','❌ Search failed.','error'); }
+  finally { btn.disabled=false; btn.textContent='Search'; }
+}
+
+async function selectMovie(idx) {
+  const m = window._tmdbResults[idx];
+  if (!m) return;
+  document.querySelectorAll('.poster-opt').forEach(e=>e.classList.remove('sel'));
+  document.querySelector(`.poster-opt[data-idx="${idx}"]`).classList.add('sel');
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/movie/${m.id}?api_key=${TMDB_KEY}`);
+    const full = await res.json();
+    selectedMovie = {
+      tmdbId: full.id, title: full.title,
+      poster: full.poster_path ? `https://image.tmdb.org/t/p/w300${full.poster_path}` : '',
+      backdrop: full.backdrop_path ? `https://image.tmdb.org/t/p/w780${full.backdrop_path}` : '',
+      year: full.release_date ? full.release_date.slice(0,4) : '',
+      rating: Math.round(full.vote_average*10)/10,
+      overview: full.overview||'',
+      genreIds: (full.genres||[]).map(g=>g.id),
+    };
+    const genres = (full.genres||[]).map(g=>`<span class="tag">${g.name}</span>`).join('');
+    document.getElementById('moviePreview').innerHTML = `
+      <div class="movie-preview">
+        <img src="${selectedMovie.poster}" alt="${esc(selectedMovie.title)}"/>
+        <div class="preview-info">
+          <div style="margin-bottom:0.3rem;">${genres}</div>
+          <h3>${esc(selectedMovie.title)}</h3>
+          <p style="color:var(--gold);margin-bottom:0.3rem;">⭐ ${selectedMovie.rating} · ${selectedMovie.year}</p>
+          <p>${esc((selectedMovie.overview||'').slice(0,100))}${selectedMovie.overview?.length>100?'...':''}</p>
+        </div>
+      </div>`;
+    document.getElementById('s2n').style.background = 'var(--green)';
+    toast('Movie selected! Choose VJ and add 👇', 'success');
+  } catch { toast('Could not load movie details', 'error'); }
+}
+
+function selectVJ(vj, el) {
+  selectedVJ = vj;
+  document.querySelectorAll('.vj-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('vjCustom').value = '';
+}
+
+async function addMovie() {
+  if (!uploadedFileName) return toast('Upload the video first (Step 1)', 'error');
+  if (!selectedMovie) return toast('Select a movie from TMDB (Step 2)', 'error');
+  const vj = document.getElementById('vjCustom').value.trim() || selectedVJ;
+  const btn = document.getElementById('addBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Adding...';
+  try {
+    const res = await fetch(`${ADMIN_API}/add-movie`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ ...selectedMovie, fileName: uploadedFileName, vj }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('s3n').style.background = 'var(--green)';
+      showStatus('addStatus', `🎉 "${selectedMovie.title}" is now live on Picha+!`, 'success');
+      btn.innerHTML = '🎉 Added!';
+      toast('Movie added!', 'success');
+      setTimeout(resetForm, 3000);
+    } else throw new Error(data.error);
+  } catch(e) {
+    showStatus('addStatus', '❌ '+e.message, 'error');
+    btn.disabled = false;
+    btn.innerHTML = '✅ Add Movie to Picha+';
+  }
+}
+
+function resetForm() {
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileNameInput').value = '';
+  document.getElementById('selFileName').textContent = '';
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('uploadBtn').disabled = false;
+  document.getElementById('uploadBtn').textContent = 'Upload to Backblaze';
+  document.getElementById('tmdbQuery').value = '';
+  document.getElementById('posterGrid').innerHTML = '';
+  document.getElementById('moviePreview').innerHTML = '';
+  document.getElementById('vjCustom').value = '';
+  selectedMovie = null; uploadedFileName = null; selectedVJ = 'VJ Junior';
+  ['s1n','s2n','s3n'].forEach((id,i) => { document.getElementById(id).textContent=i+1; document.getElementById(id).style.background='var(--gold)'; });
+  ['uploadStatus','tmdbStatus','addStatus'].forEach(id => document.getElementById(id).style.display='none');
+  document.getElementById('addBtn').innerHTML = '✅ Add Movie to Picha+';
+  document.getElementById('addBtn').disabled = false;
+  document.querySelectorAll('.vj-pill').forEach((p,i) => p.classList.toggle('active', i===0));
+}
+
+async function loadMovies() {
+  document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API}/movies`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    if (!data.movies?.length) { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No movies yet.</div>'; return; }
+    document.getElementById('moviesList').innerHTML = `
+      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${data.movies.length} movies in catalog</div>
+      ${data.movies.map(m=>`
+        <div class="movie-card">
+          <img src="${m.poster}" alt="${esc(m.title)}" onerror="this.style.display='none'"/>
+          <div class="movie-card-info">
+            <div class="movie-card-title">${esc(m.title)}</div>
+            <div class="movie-card-meta">${m.year} · ⭐${m.rating} · ${m.vj||''}</div>
+          </div>
+          <button class="btn btn-red btn-sm" onclick="deleteMovie(${m.tmdbId},'${esc(m.title)}')">🗑</button>
+        </div>`).join('')}`;
+  } catch { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
+}
+
+async function deleteMovie(tmdbId, title) {
+  if (!confirm(`Delete "${title}"?`)) return;
+  try {
+    const res = await fetch(`${ADMIN_API}/delete-movie`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ tmdbId }),
+    });
+    const data = await res.json();
+    if (data.success) { toast(`Deleted "${title}"`, 'success'); loadMovies(); }
+    else throw new Error(data.error);
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
+
+async function loadUsers() {
+  document.getElementById('usersList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API}/users`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    document.getElementById('usersList').innerHTML = `
+      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${data.users.length} users</div>
+      ${data.users.map(u => {
+        const isPremium = u.subscribed;
+        const days = u.expiry ? Math.ceil((u.expiry-Date.now())/(1000*60*60*24)) : 0;
+        return `<div class="user-card">
+          <div style="font-size:1.5rem;">👤</div>
+          <div class="user-info">
+            <div class="user-name">${esc(u.name)}</div>
+            <div class="user-email">${esc(u.email)}</div>
+            <span class="user-plan ${isPremium?'plan-premium':'plan-free'}">${isPremium?`PREMIUM · ${days}d left`:'FREE'}</span>
+          </div>
+          <button class="btn btn-green btn-sm" onclick="openGrant('${u.id}','${esc(u.name)}')">🎁 Grant</button>
+        </div>`;
+      }).join('')}`;
+  } catch { document.getElementById('usersList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
+}
+
+function openGrant(userId, name) {
+  grantUserId = userId;
+  document.getElementById('grantUserName').textContent = `Granting access to: ${name}`;
+  document.getElementById('grantDays').value = '30';
+  document.getElementById('grantModal').classList.add('active');
+}
+function closeGrant() { document.getElementById('grantModal').classList.remove('active'); grantUserId = null; }
+
+async function confirmGrant() {
+  const days = parseInt(document.getElementById('grantDays').value);
+  if (!days||days<1) return toast('Enter valid number of days', 'error');
+  try {
+    const res = await fetch(`${ADMIN_API}/grant-sub`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ userId: grantUserId, days }),
+    });
+    const data = await res.json();
+    if (data.success) { toast(`✅ ${data.name} granted ${days} days!`, 'success'); closeGrant(); loadUsers(); }
+    else throw new Error(data.error);
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
+
+function showStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.className = `status ${type}`; el.style.display = 'block';
+}
+function toast(msg, type='') {
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+function esc(str) { return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
