@@ -213,7 +213,7 @@ const ADMIN_API = 'https://picha-admin-worker.kerosoftz522.workers.dev';
 const MAIN_API  = 'https://picha-plus-worker.kerosoftz522.workers.dev';
 const TMDB_KEY  = '3ba29e8934b640ae467a31241cd2f0fd';
 
-let sessionToken = localStorage.getItem('pichaplus_session');
+let sessionToken = localStorage.getItem('pichaplus_admin_session');
 let selectedMovie = null;
 let uploadedFileName = null;
 let selectedVJ = 'VJ Junior';
@@ -222,10 +222,20 @@ let grantUserId = null;
 window.addEventListener('load', async () => {
   const params = new URLSearchParams(window.location.search);
   const tok = params.get('session');
+  const err = params.get('error');
   if (tok) {
     sessionToken = tok;
-    localStorage.setItem('pichaplus_session', tok);
+    localStorage.setItem('pichaplus_admin_session', tok);
     window.history.replaceState({}, '', window.location.pathname);
+  } else {
+    sessionToken = localStorage.getItem('pichaplus_admin_session');
+  }
+  if (err === 'not_admin') {
+    document.getElementById('gateErr').textContent = '❌ Your account is not authorized as admin.';
+    document.getElementById('gateErr').style.display = 'block';
+  } else if (err) {
+    document.getElementById('gateErr').textContent = '❌ Sign in failed. Please try again.';
+    document.getElementById('gateErr').style.display = 'block';
   }
   if (sessionToken) await checkAdmin();
 });
@@ -248,7 +258,7 @@ async function checkAdmin() {
   }
 }
 
-function signIn() { window.location.href = `${MAIN_API}/auth/google`; }
+function signIn() { window.location.href = `${ADMIN_API}/auth/google`; }
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['add','movies','users'][i]===name));
