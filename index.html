@@ -279,8 +279,8 @@ input[type=text]::placeholder { color: var(--gray2); }
     <h3>Add Episode</h3>
     <p style="font-size:0.82rem;color:var(--gray);margin-bottom:1rem;" id="episodeSeriesTitle"></p>
     <input type="hidden" id="episodeSeriesId"/>
-    <label>Season</label>
-    <input type="number" id="episodeSeason" value="1" min="1" placeholder="1"/>
+    <label>Season <span style="color:var(--gray);font-size:0.75rem;">(optional)</span></label>
+    <input type="number" id="episodeSeason" value="1" min="1" placeholder="1 (default)"/>
     <label>Episode Number</label>
     <input type="number" id="episodeNum" placeholder="e.g. 1" min="1"/>
     <label>Episode Title (optional)</label>
@@ -293,6 +293,10 @@ input[type=text]::placeholder { color: var(--gray2); }
       <span id="epSelFileName" style="font-size:0.8rem;color:var(--gray);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
     </div>
     <input type="file" id="episodeFileInput" accept="video/*" style="display:none;"/>
+    <div class="progress-wrap" id="epProgressWrap" style="display:none;">
+      <div class="progress-track"><div class="progress-fill" id="epProgressFill"></div></div>
+      <div class="progress-label" id="epProgressLabel">0%</div>
+    </div>
     <div class="status" id="episodeAddStatus" style="display:none;"></div>
     <div class="modal-actions">
       <button class="btn btn-outline btn-full" onclick="closeEpisodeModal()">Cancel</button>
@@ -740,6 +744,8 @@ function closeEpisodeModal() {
   document.getElementById('episodeSeason').value = '1';
   document.getElementById('episodeTitle').value = '';
   document.getElementById('episodeAddStatus').style.display = 'none';
+  document.getElementById('epProgressWrap').style.display = 'none';
+  document.getElementById('epProgressFill').style.width = '0%';
 }
 document.addEventListener('DOMContentLoaded', () => {
   const epFile = document.getElementById('episodeFileInput');
@@ -768,26 +774,43 @@ async function uploadAndAddEpisode() {
   if (!fileInput.files[0]) return toast('Select a video file', 'error');
   const btn = document.getElementById('episodeUploadBtn');
   btn.disabled = true; btn.innerHTML = '⏳ Uploading...';
-  showStatus('episodeAddStatus','Uploading video...','info');
+  document.getElementById('epProgressWrap').style.display = 'block';
+  document.getElementById('epProgressFill').style.width = '0%';
+  document.getElementById('epProgressLabel').textContent = '0%';
+  document.getElementById('episodeAddStatus').style.display = 'none';
   try {
     // Get B2 upload URL
     const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
       headers: { 'X-Session-Token': sessionToken }
     });
-    const { uploadUrl, authToken } = await urlRes.json();
-    // Upload to B2
+    const b2 = await urlRes.json();
+    const uploadUrl = b2.uploadUrl;
+    const authorizationToken = b2.authorizationToken;
+    if (!uploadUrl || !authorizationToken) throw new Error('Could not get upload URL from server');
+    // Upload to B2 via XHR for progress tracking
     const file = fileInput.files[0];
-    const uploadRes = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': authToken,
-        'X-Bz-File-Name': encodeURIComponent(fileName),
-        'Content-Type': file.type || 'video/mp4',
-        'X-Bz-Content-Sha1': 'do_not_verify',
-      },
-      body: file,
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', uploadUrl);
+      xhr.setRequestHeader('Authorization', authorizationToken);
+      xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+      xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+      xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded / e.total * 100);
+          document.getElementById('epProgressFill').style.width = pct + '%';
+          document.getElementById('epProgressLabel').textContent =
+            `${pct}% — ${(e.loaded/1024/1024).toFixed(1)} MB / ${(e.total/1024/1024).toFixed(1)} MB`;
+          btn.innerHTML = `⏳ ${pct}%`;
+        }
+      };
+      xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`));
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.send(file);
     });
-    if (!uploadRes.ok) throw new Error('Upload failed');
+    document.getElementById('epProgressFill').style.width = '100%';
+    document.getElementById('epProgressLabel').textContent = '✅ Upload complete!';
     showStatus('episodeAddStatus','Adding episode to catalog...','info');
     // Save episode to catalog
     const res = await fetch(`${ADMIN_API}/add-episode`, {
@@ -798,10 +821,13 @@ async function uploadAndAddEpisode() {
     const data = await res.json();
     if (data.success) {
       showStatus('episodeAddStatus', `✅ S${season}E${epNum} added!`, 'success');
-      toast(`Episode added!`, 'success');
+      toast('Episode added!', 'success');
       loadSeries();
     } else throw new Error(data.error);
-  } catch(e) { showStatus('episodeAddStatus','❌ '+e.message,'error'); }
+  } catch(e) {
+    showStatus('episodeAddStatus','❌ '+e.message,'error');
+    document.getElementById('epProgressWrap').style.display = 'none';
+  }
   btn.disabled = false; btn.innerHTML = '⬆️ Upload & Add Episode';
 }
 
