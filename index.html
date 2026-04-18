@@ -11,7 +11,7 @@
   --bg: #0a0a0a; --bg2: #141414; --bg3: #1e1e1e;
   --gold: #e5b93c; --gold2: #f0cd70;
   --white: #fff; --gray: #888; --gray2: #444;
-  --red: #e53935; --green: #43a047; --blue: #2196f3;
+  --red: #e53935; --green: #43a047;
   --border: rgba(255,255,255,0.08);
 }
 body { background: var(--bg); color: var(--white); font-family: 'Inter', sans-serif; min-height: 100vh; padding-bottom: 4rem; }
@@ -31,20 +31,23 @@ body { background: var(--bg); color: var(--white); font-family: 'Inter', sans-se
 .tab-content.active { display: block; }
 #gate { text-align: center; padding: 4rem 1rem; }
 .btn-google { display: inline-flex; align-items: center; gap: 0.7rem; background: var(--white); color: #111; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; border: none; }
+.btn-google svg { width: 20px; height: 20px; }
 .step { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; margin-bottom: 1rem; }
 .step-header { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1rem; }
 .step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--gold); color: #000; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.3s; }
 .step-title { font-weight: 600; font-size: 0.9rem; }
+.upload-zone { border: 2px dashed var(--gray2); border-radius: 8px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+.upload-zone:hover { border-color: var(--gold); background: rgba(229,185,60,0.04); }
+.upload-zone p { font-size: 0.82rem; color: var(--gray); margin-top: 0.3rem; }
+.upload-zone strong { color: var(--white); font-size: 0.88rem; }
+.file-name { font-size: 0.78rem; color: var(--gold); margin-top: 0.5rem; word-break: break-all; }
 .progress-wrap { margin-top: 0.8rem; display: none; }
 .progress-track { background: var(--bg3); border-radius: 100px; height: 5px; overflow: hidden; margin-bottom: 0.4rem; }
 .progress-fill { height: 100%; background: var(--gold); border-radius: 100px; width: 0%; transition: width 0.2s; }
 .progress-label { font-size: 0.75rem; color: var(--gray); }
-.file-name { font-size: 0.78rem; color: var(--gold); margin-top: 0.5rem; word-break: break-all; }
 label { display: block; font-size: 0.72rem; color: var(--gray); margin-bottom: 0.35rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-input[type=text], select { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 0.65rem 0.85rem; color: var(--white); font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none; transition: border 0.2s; margin-bottom: 0.8rem; }
-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%23888'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2rem; }
-select option { background: var(--bg3); }
-input[type=text]:focus, select:focus { border-color: var(--gold); }
+input[type=text] { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 0.65rem 0.85rem; color: var(--white); font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none; transition: border 0.2s; margin-bottom: 0.8rem; }
+input[type=text]:focus { border-color: var(--gold); }
 input[type=text]::placeholder { color: var(--gray2); }
 .btn { padding: 0.65rem 1.1rem; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 0.83rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
 .btn-gold { background: var(--gold); color: #000; }
@@ -56,14 +59,6 @@ input[type=text]::placeholder { color: var(--gray2); }
 .btn-red { background: var(--red); color: #fff; }
 .btn-green { background: var(--green); color: #fff; }
 .btn-outline { background: transparent; color: var(--white); border: 1px solid var(--border); }
-/* Content type toggle */
-.type-toggle { display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 1rem; }
-.type-btn { flex: 1; padding: 0.6rem; text-align: center; font-size: 0.78rem; font-weight: 600; cursor: pointer; background: var(--bg3); color: var(--gray); transition: all 0.2s; border: none; font-family: 'Inter', sans-serif; }
-.type-btn.active { background: var(--gold); color: #000; }
-/* TMDB type toggle */
-.tmdb-type-toggle { display: flex; gap: 0.4rem; margin-bottom: 0.8rem; }
-.tmdb-type-btn { padding: 0.3rem 0.8rem; border-radius: 100px; font-size: 0.72rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--gray); font-family: 'Inter', sans-serif; transition: all 0.2s; }
-.tmdb-type-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
 .search-row { display: flex; gap: 0.5rem; margin-bottom: 0; }
 .search-row input { margin-bottom: 0; flex: 1; }
 .poster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.8rem; }
@@ -78,7 +73,6 @@ input[type=text]::placeholder { color: var(--gray2); }
 .preview-info h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem; }
 .preview-info p { font-size: 0.72rem; color: var(--gray); line-height: 1.5; }
 .tag { background: rgba(229,185,60,0.15); color: var(--gold); font-size: 0.6rem; padding: 0.12rem 0.4rem; border-radius: 100px; font-weight: 600; display: inline-block; margin-right: 0.3rem; margin-bottom: 0.3rem; }
-.tag-blue { background: rgba(33,150,243,0.15); color: #64b5f6; }
 .vj-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; margin-bottom: 0.8rem; }
 .vj-pill { background: var(--bg3); border: 1px solid var(--border); border-radius: 100px; padding: 0.35rem 0.8rem; font-size: 0.75rem; cursor: pointer; transition: all 0.15s; color: var(--gray); }
 .vj-pill.active { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 600; }
@@ -94,13 +88,12 @@ input[type=text]::placeholder { color: var(--gray2); }
 .pill-premium { background: rgba(229,185,60,0.2); color: var(--gold); }
 .pill-super { background: rgba(255,100,0,0.2); color: #ff6400; }
 .pill-admin { background: rgba(100,160,255,0.2); color: #64a0ff; }
-.ep-list { width: 100%; margin-top: 0.5rem; }
-.ep-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.6rem; background: var(--bg3); border-radius: 6px; margin-bottom: 0.3rem; font-size: 0.78rem; }
-.ep-num { background: var(--gold); color: #000; font-size: 0.6rem; font-weight: 700; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* SITE IFRAME */
 .site-frame-wrap { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: #000; margin-top: 0.5rem; }
 .site-frame-toolbar { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem; background: var(--bg3); border-bottom: 1px solid var(--border); }
 .site-frame-url { flex: 1; font-size: 0.72rem; color: var(--gray); }
 .site-frame-wrap iframe { width: 100%; height: 70vh; border: none; display: block; }
+/* SPIN */
 .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(0,0,0,0.2); border-top-color: #000; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: #222; color: var(--white); padding: 0.65rem 1.3rem; border-radius: 100px; font-size: 0.8rem; z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,0.4); white-space: nowrap; }
@@ -124,51 +117,42 @@ input[type=text]::placeholder { color: var(--gray2); }
   </div>
 </nav>
 
+<!-- GATE -->
 <div id="gate">
   <div style="font-size:3rem;margin-bottom:1rem;">🎬</div>
   <h2 style="font-family:'Bebas Neue',sans-serif;font-size:2rem;margin-bottom:0.5rem;">Admin Panel</h2>
   <p style="color:var(--gray);font-size:0.85rem;margin-bottom:2rem;">Sign in with an authorized Google account.</p>
   <button class="btn-google" onclick="signIn()">
-    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
     Sign in with Google
   </button>
   <div id="gateErr" style="color:#ef9a9a;font-size:0.8rem;margin-top:1rem;display:none;"></div>
 </div>
 
+<!-- PANEL -->
 <div id="panel" style="display:none;">
   <div class="tabs" id="tabBar">
-    <div class="tab active" onclick="switchTab('add')">➕ Add Content</div>
-    <div class="tab" onclick="switchTab('movies')">🎬 Catalog</div>
+    <div class="tab active" onclick="switchTab('add')">➕ Add Movie</div>
+    <div class="tab" onclick="switchTab('movies')">🎬 Movies</div>
     <div class="tab" onclick="switchTab('users')">👥 Users</div>
     <div class="tab" id="adminsTab" style="display:none;" onclick="switchTab('admins')">🔑 Admins</div>
     <div class="tab" onclick="switchTab('site')">🌐 Site</div>
   </div>
   <div class="main">
 
-    <!-- ADD CONTENT TAB -->
+    <!-- ADD MOVIE -->
     <div class="tab-content active" id="tab-add">
-
-      <!-- Content type selector -->
-      <div style="margin-bottom:1rem;">
-        <label>What are you adding?</label>
-        <div class="type-toggle">
-          <button class="type-btn active" id="typeMovie" onclick="setContentType('movie')">🎬 Movie</button>
-          <button class="type-btn" id="typeSeries" onclick="setContentType('series')">📺 New Series</button>
-          <button class="type-btn" id="typeEpisode" onclick="setContentType('episode')">➕ Episode</button>
-        </div>
-      </div>
-
-      <!-- STEP 1: Upload -->
       <div class="step">
         <div class="step-header"><div class="step-num" id="s1n">1</div><div class="step-title">Upload Video to Backblaze</div></div>
-        <label>File path in Backblaze</label>
+        <label>Save as (file path)</label>
         <input type="text" id="fileNameInput" placeholder="movies/movie-title.mp4"/>
-        <label>Select video file</label>
-        <div class="search-row" style="margin-bottom:0.5rem;">
-          <input type="text" id="fileSearch" placeholder="No file selected..." style="margin-bottom:0;" readonly/>
+        <label>Search & select file</label>
+        <div class="search-row" style="margin-bottom:0.8rem;">
+          <input type="text" id="fileSearch" placeholder="Type to filter by name..." oninput="filterFiles(this.value)" style="margin-bottom:0;"/>
           <button class="btn btn-gold" onclick="document.getElementById('fileInput').click()">Browse</button>
         </div>
         <input type="file" id="fileInput" accept="video/*" style="display:none;"/>
+        <div id="fileSearchHint" style="font-size:0.75rem;color:var(--gray2);margin-bottom:0.8rem;display:none;">Tip: tap Browse then use the 🔍 search in your file picker</div>
         <div id="selFileName" class="file-name"></div>
         <div class="progress-wrap" id="progressWrap">
           <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
@@ -177,40 +161,16 @@ input[type=text]::placeholder { color: var(--gray2); }
         <div class="status" id="uploadStatus"></div>
         <button class="btn btn-gold btn-full" style="margin-top:0.8rem;" id="uploadBtn" onclick="uploadVideo()">Upload to Backblaze</button>
       </div>
-
-      <!-- STEP 2: TMDB -->
       <div class="step">
         <div class="step-header"><div class="step-num" id="s2n">2</div><div class="step-title">Find on TMDB</div></div>
-        <div class="tmdb-type-toggle">
-          <button class="tmdb-type-btn active" id="tmdbTypeMovie" onclick="setTmdbType('movie')">🎬 Movie</button>
-          <button class="tmdb-type-btn" id="tmdbTypeTV" onclick="setTmdbType('tv')">📺 TV Show</button>
-        </div>
         <div class="search-row">
-          <input type="text" id="tmdbQuery" placeholder="Search title..." onkeydown="if(event.key==='Enter')searchTMDB()" style="margin-bottom:0;"/>
+          <input type="text" id="tmdbQuery" placeholder="Search movie title..." onkeydown="if(event.key==='Enter')searchTMDB()" style="margin-bottom:0;"/>
           <button class="btn btn-gold" id="searchBtn" onclick="searchTMDB()">Search</button>
         </div>
         <div class="poster-grid" id="posterGrid"></div>
         <div id="moviePreview"></div>
         <div class="status" id="tmdbStatus"></div>
       </div>
-
-      <!-- STEP 3: Episode details (series/episode modes only) -->
-      <div class="step" id="episodeStep" style="display:none;">
-        <div class="step-header"><div class="step-num">3</div><div class="step-title" id="episodeStepTitle">Episode Details</div></div>
-        <!-- Existing series picker (episode mode only) -->
-        <div id="existingSeriesPicker" style="display:none;">
-          <label>Select Existing Series</label>
-          <select id="existingSeriesSelect">
-            <option value="">Loading series...</option>
-          </select>
-        </div>
-        <label>Episode Number</label>
-        <input type="text" id="epNumber" placeholder="E01"/>
-        <label>Episode Title (optional)</label>
-        <input type="text" id="epTitle" placeholder="Pilot"/>
-      </div>
-
-      <!-- STEP 3/4: VJ & Submit -->
       <div class="step">
         <div class="step-header"><div class="step-num" id="s3n">3</div><div class="step-title">Select VJ & Add</div></div>
         <label>VJ Name</label>
@@ -223,26 +183,25 @@ input[type=text]::placeholder { color: var(--gray2); }
           <div class="vj-pill" onclick="selectVJ('VJ Shield',this)">VJ Shield</div>
           <div class="vj-pill" onclick="selectVJ('VJ Mark',this)">VJ Mark</div>
           <div class="vj-pill" onclick="selectVJ('VJ CB',this)">VJ CB</div>
-          <div class="vj-pill" onclick="selectVJ('VJ Baros',this)">VJ Baros</div>
         </div>
         <label>Custom VJ (optional)</label>
         <input type="text" id="vjCustom" placeholder="Type a different VJ name..."/>
-        <button class="btn btn-gold btn-full btn-lg" id="addBtn" onclick="submitContent()">✅ Add Movie to Picha+</button>
+        <button class="btn btn-gold btn-full btn-lg" id="addBtn" onclick="addMovie()">✅ Add Movie to Picha+</button>
         <div class="status" id="addStatus"></div>
       </div>
     </div>
 
-    <!-- CATALOG TAB -->
+    <!-- MOVIES -->
     <div class="tab-content" id="tab-movies">
       <div id="moviesList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
     </div>
 
-    <!-- USERS TAB -->
+    <!-- USERS -->
     <div class="tab-content" id="tab-users">
       <div id="usersList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
     </div>
 
-    <!-- ADMINS TAB -->
+    <!-- ADMINS -->
     <div class="tab-content" id="tab-admins">
       <div class="step">
         <div class="step-header"><div class="step-title">Add New Admin</div></div>
@@ -256,14 +215,14 @@ input[type=text]::placeholder { color: var(--gray2); }
       <div id="adminsList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
     </div>
 
-    <!-- SITE TAB -->
+    <!-- SITE -->
     <div class="tab-content" id="tab-site">
       <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">Live preview of Picha+</div>
       <div class="site-frame-wrap">
         <div class="site-frame-toolbar">
           <span style="font-size:0.8rem;">🌐</span>
           <span class="site-frame-url">keromisec9-prog.github.io/picha-plus/</span>
-          <button class="btn btn-sm btn-outline" onclick="document.getElementById('siteFrame').src=document.getElementById('siteFrame').src" style="padding:0.25rem 0.6rem;font-size:0.7rem;">↻</button>
+          <button class="btn btn-sm btn-outline" onclick="document.getElementById('siteFrame').src=document.getElementById('siteFrame').src" style="padding:0.25rem 0.6rem;font-size:0.7rem;">↻ Refresh</button>
           <a href="https://keromisec9-prog.github.io/picha-plus/" target="_blank" class="btn btn-sm btn-gold" style="padding:0.25rem 0.6rem;font-size:0.7rem;text-decoration:none;">↗ Open</a>
         </div>
         <iframe id="siteFrame" src="https://keromisec9-prog.github.io/picha-plus/" loading="lazy" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
@@ -289,6 +248,7 @@ input[type=text]::placeholder { color: var(--gray2); }
 
 <script>
 const ADMIN_API = 'https://picha-admin-worker.kerosoftz522.workers.dev';
+const MAIN_API  = 'https://picha-plus-worker.kerosoftz522.workers.dev';
 const TMDB_KEY  = '3ba29e8934b640ae467a31241cd2f0fd';
 
 let sessionToken = null;
@@ -297,10 +257,7 @@ let uploadedFileName = null;
 let selectedVJ = 'VJ Junior';
 let grantUserId = null;
 let isSuperAdmin = false;
-let contentType = 'movie';     // 'movie' | 'series' | 'episode'
-let tmdbSearchType = 'movie';  // 'movie' | 'tv'
 
-// ── AUTH ──────────────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
   const params = new URLSearchParams(window.location.search);
   const tok = params.get('session');
@@ -332,14 +289,25 @@ async function checkAdmin() {
       showGateErr('❌ Your account is not authorized as admin.');
       localStorage.removeItem('pichaplus_admin_session');
     }
-  } catch { showGateErr('❌ Could not connect to server.'); }
+  } catch {
+    showGateErr('❌ Could not connect to server.');
+  }
 }
 
-function showGateErr(msg) { const el = document.getElementById('gateErr'); el.textContent = msg; el.style.display = 'block'; }
+function showGateErr(msg) {
+  document.getElementById('gateErr').textContent = msg;
+  document.getElementById('gateErr').style.display = 'block';
+}
+
 function signIn() { window.location.href = `${ADMIN_API}/auth/google`; }
 
 async function signOut() {
-  try { await fetch(`${ADMIN_API}/auth/logout`, { method:'POST', headers:{'X-Session-Token':sessionToken} }); } catch {}
+  try {
+    await fetch(`${ADMIN_API}/auth/logout`, {
+      method: 'POST',
+      headers: { 'X-Session-Token': sessionToken }
+    });
+  } catch {}
   localStorage.removeItem('pichaplus_admin_session');
   sessionToken = null; isSuperAdmin = false;
   document.getElementById('panel').style.display = 'none';
@@ -356,89 +324,34 @@ function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
-  if (name==='movies') loadCatalog();
+  if (name==='movies') loadMovies();
   if (name==='users') loadUsers();
   if (name==='admins') loadAdmins();
 }
 
-// ── CONTENT TYPE ──────────────────────────────────────────────────────────────
-function setContentType(type) {
-  contentType = type;
-  ['movie','series','episode'].forEach(t => {
-    document.getElementById('type'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('active', t===type);
-  });
-  const fnInput = document.getElementById('fileNameInput');
-  const epStep  = document.getElementById('episodeStep');
-  const picker  = document.getElementById('existingSeriesPicker');
-  const s3      = document.getElementById('s3n');
-  const addBtn  = document.getElementById('addBtn');
-
-  if (type === 'movie') {
-    fnInput.placeholder = 'movies/movie-title.mp4';
-    epStep.style.display = 'none';
-    s3.textContent = '3';
-    addBtn.textContent = '✅ Add Movie to Picha+';
-    setTmdbType('movie');
-  } else if (type === 'series') {
-    fnInput.placeholder = 'series/series-name/e01.mp4';
-    epStep.style.display = 'block';
-    picker.style.display = 'none';
-    document.getElementById('episodeStepTitle').textContent = 'First Episode Details';
-    s3.textContent = '4';
-    addBtn.textContent = '✅ Create Series on Picha+';
-    setTmdbType('tv');
-  } else if (type === 'episode') {
-    fnInput.placeholder = 'series/series-name/e02.mp4';
-    epStep.style.display = 'block';
-    picker.style.display = 'block';
-    document.getElementById('episodeStepTitle').textContent = 'Episode Details';
-    s3.textContent = '4';
-    addBtn.textContent = '✅ Add Episode to Series';
-    setTmdbType('tv');
-    loadExistingSeriesDropdown();
+// ── FILE SEARCH ───────────────────────────────────────────────────────────────
+function filterFiles(val) {
+  const hint = document.getElementById('fileSearchHint');
+  hint.style.display = val.trim() ? 'block' : 'none';
+  if (val.trim()) {
+    // Auto-fill file name input with slugified search term
+    const slug = val.trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'');
+    if (slug) document.getElementById('fileNameInput').value = `movies/${slug}.mp4`;
   }
 }
 
-async function loadExistingSeriesDropdown() {
-  const sel = document.getElementById('existingSeriesSelect');
-  sel.innerHTML = '<option value="">Loading...</option>';
-  try {
-    const res = await fetch(`${ADMIN_API}/movies`, { headers: { 'X-Session-Token': sessionToken } });
-    const data = await res.json();
-    const series = Object.values((data.catalog||{}).series || {});
-    if (!series.length) { sel.innerHTML = '<option value="">No series yet — create one first</option>'; return; }
-    sel.innerHTML = '<option value="">Select a series...</option>' +
-      series.map(s => `<option value="${s.tmdbId}">${esc(s.title)}</option>`).join('');
-  } catch { sel.innerHTML = '<option value="">Failed to load</option>'; }
-}
-
-// ── TMDB TYPE ─────────────────────────────────────────────────────────────────
-function setTmdbType(type) {
-  tmdbSearchType = type;
-  document.getElementById('tmdbTypeMovie').classList.toggle('active', type==='movie');
-  document.getElementById('tmdbTypeTV').classList.toggle('active', type==='tv');
-  document.getElementById('posterGrid').innerHTML = '';
-  document.getElementById('moviePreview').innerHTML = '';
-  document.getElementById('tmdbStatus').style.display = 'none';
-  selectedMovie = null;
-}
-
-// ── FILE UPLOAD ───────────────────────────────────────────────────────────────
 document.getElementById('fileInput').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
-  document.getElementById('fileSearch').value = file.name;
   document.getElementById('selFileName').textContent = `📁 ${file.name}`;
-  if (!document.getElementById('fileNameInput').value) {
-    const slug = file.name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-\.]/g,'').replace(/\.(mp4|mkv|avi|mov)$/,'')+'.mp4';
-    const folder = contentType === 'movie' ? 'movies' : 'series';
-    document.getElementById('fileNameInput').value = `${folder}/${slug}`;
+  document.getElementById('fileSearch').value = file.name;
+  if (!document.getElementById('fileNameInput').value || document.getElementById('fileNameInput').value === 'movies/.mp4') {
+    const slug = file.name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-\.]/g,'').replace(/\.(mp4|mkv|avi)$/,'')+'.mp4';
+    document.getElementById('fileNameInput').value = `movies/${slug}`;
   }
-  // Auto-populate TMDB search
-  const guess = file.name.replace(/\.(mp4|mkv|avi|mov)$/i,'').replace(/[-_.]/g,' ').replace(/S\d+E\d+.*/i,'').trim().replace(/\b\w/g,c=>c.toUpperCase());
-  document.getElementById('tmdbQuery').value = guess;
 });
 
+// ── UPLOAD ────────────────────────────────────────────────────────────────────
 async function uploadVideo() {
   const file = document.getElementById('fileInput').files[0];
   const fileName = document.getElementById('fileNameInput').value.trim();
@@ -478,39 +391,35 @@ async function uploadVideo() {
     document.getElementById('s1n').style.background = 'var(--green)';
     showStatus('uploadStatus', '✅ Uploaded successfully!', 'success');
     btn.innerHTML = '✅ Uploaded!';
-    toast('Upload done! Search TMDB 👇', 'success');
+    const guess = fileName.split('/').pop().replace(/\.mp4$/i,'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    document.getElementById('tmdbQuery').value = guess;
+    toast('Upload done! Now search for the movie 👇', 'success');
   } catch(e) {
     showStatus('uploadStatus', '❌ '+e.message, 'error');
     btn.disabled = false; btn.textContent = 'Upload to Backblaze';
   }
 }
 
-// ── TMDB SEARCH ───────────────────────────────────────────────────────────────
+// ── TMDB ──────────────────────────────────────────────────────────────────────
 async function searchTMDB() {
   const query = document.getElementById('tmdbQuery').value.trim();
   if (!query) return;
   const btn = document.getElementById('searchBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
   try {
-    const ep = tmdbSearchType === 'tv'
-      ? `https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}&api_key=${TMDB_KEY}`
-      : `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${TMDB_KEY}`;
-    const res = await fetch(ep);
+    const res = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${TMDB_KEY}`);
     const data = await res.json();
     const results = (data.results||[]).slice(0,9);
-    if (!results.length) {
-      showStatus('tmdbStatus','❌ No results. Try switching Movie / TV Show above.','error');
-      document.getElementById('posterGrid').innerHTML = '';
-    } else {
-      document.getElementById('tmdbStatus').style.display = 'none';
+    if (!results.length) { showStatus('tmdbStatus','❌ No results found.','error'); document.getElementById('posterGrid').innerHTML=''; }
+    else {
+      document.getElementById('tmdbStatus').style.display='none';
       window._tmdbResults = results;
       document.getElementById('posterGrid').innerHTML = results.map((m,i) => {
         const poster = m.poster_path ? `https://image.tmdb.org/t/p/w342${m.poster_path}` : null;
-        const title  = m.title || m.name || '';
-        const year   = (m.release_date || m.first_air_date || '').slice(0,4);
-        return `<div class="poster-opt" onclick="selectResult(${i})" data-idx="${i}">
-          ${poster ? `<img src="${poster}" loading="lazy"/>` : `<div style="background:#222;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem;">${tmdbSearchType==='tv'?'📺':'🎬'}</div>`}
-          <div class="poster-label">${esc(title)}${year?` <span style="color:#aaa">(${year})</span>`:''}</div>
+        const year = m.release_date ? m.release_date.slice(0,4) : '';
+        return `<div class="poster-opt" onclick="selectMovie(${i})" data-idx="${i}">
+          ${poster ? `<img src="${poster}" loading="lazy"/>` : `<div style="background:#222;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">🎬</div>`}
+          <div class="poster-label">${esc(m.title)} ${year?`<span style="color:#aaa">(${year})</span>`:''}</div>
         </div>`;
       }).join('');
     }
@@ -518,44 +427,39 @@ async function searchTMDB() {
   finally { btn.disabled=false; btn.textContent='Search'; }
 }
 
-async function selectResult(idx) {
+async function selectMovie(idx) {
   const m = window._tmdbResults[idx];
   if (!m) return;
   document.querySelectorAll('.poster-opt').forEach(e=>e.classList.remove('sel'));
   document.querySelector(`.poster-opt[data-idx="${idx}"]`).classList.add('sel');
   try {
-    const isTV = tmdbSearchType === 'tv';
-    const ep   = isTV ? `https://api.themoviedb.org/3/tv/${m.id}?api_key=${TMDB_KEY}`
-                      : `https://api.themoviedb.org/3/movie/${m.id}?api_key=${TMDB_KEY}`;
-    const full = await (await fetch(ep)).json();
-    const title = full.title || full.name || '';
-    const year  = (full.release_date || full.first_air_date || '').slice(0,4);
+    const res = await fetch(`https://api.themoviedb.org/3/movie/${m.id}?api_key=${TMDB_KEY}`);
+    const full = await res.json();
     selectedMovie = {
-      tmdbId: full.id, title,
-      poster:   full.poster_path   ? `https://image.tmdb.org/t/p/w300${full.poster_path}`   : '',
+      tmdbId: full.id, title: full.title,
+      poster: full.poster_path ? `https://image.tmdb.org/t/p/w300${full.poster_path}` : '',
       backdrop: full.backdrop_path ? `https://image.tmdb.org/t/p/w780${full.backdrop_path}` : '',
-      year, rating: Math.round((full.vote_average||0)*10)/10,
-      overview: full.overview||'', genreIds: (full.genres||[]).map(g=>g.id),
-      mediaType: isTV ? 'tv' : 'movie',
+      year: full.release_date ? full.release_date.slice(0,4) : '',
+      rating: Math.round(full.vote_average*10)/10,
+      overview: full.overview||'',
+      genreIds: (full.genres||[]).map(g=>g.id),
     };
-    const genres  = (full.genres||[]).map(g=>`<span class="tag ${isTV?'tag-blue':''}">${g.name}</span>`).join('');
-    const typeTag = isTV ? `<span class="tag tag-blue">📺 TV Series</span>` : `<span class="tag">🎬 Movie</span>`;
+    const genres = (full.genres||[]).map(g=>`<span class="tag">${g.name}</span>`).join('');
     document.getElementById('moviePreview').innerHTML = `
       <div class="movie-preview">
-        <img src="${selectedMovie.poster}" alt="${esc(title)}" onerror="this.style.display='none'"/>
+        <img src="${selectedMovie.poster}" alt="${esc(selectedMovie.title)}"/>
         <div class="preview-info">
-          <div style="margin-bottom:0.3rem;">${typeTag} ${genres}</div>
-          <h3>${esc(title)}</h3>
-          <p style="color:var(--gold);margin-bottom:0.3rem;">⭐ ${selectedMovie.rating} · ${year}</p>
-          <p>${esc((selectedMovie.overview||'').slice(0,100))}${(selectedMovie.overview||'').length>100?'...':''}</p>
+          <div style="margin-bottom:0.3rem;">${genres}</div>
+          <h3>${esc(selectedMovie.title)}</h3>
+          <p style="color:var(--gold);margin-bottom:0.3rem;">⭐ ${selectedMovie.rating} · ${selectedMovie.year}</p>
+          <p>${esc((selectedMovie.overview||'').slice(0,100))}${selectedMovie.overview?.length>100?'...':''}</p>
         </div>
       </div>`;
     document.getElementById('s2n').style.background = 'var(--green)';
-    toast('Selected! Choose VJ and add 👇', 'success');
-  } catch { toast('Could not load details', 'error'); }
+    toast('Movie selected! Choose VJ and add 👇', 'success');
+  } catch { toast('Could not load movie details', 'error'); }
 }
 
-// ── VJ ────────────────────────────────────────────────────────────────────────
 function selectVJ(vj, el) {
   selectedVJ = vj;
   document.querySelectorAll('.vj-pill').forEach(p=>p.classList.remove('active'));
@@ -563,75 +467,30 @@ function selectVJ(vj, el) {
   document.getElementById('vjCustom').value = '';
 }
 
-// ── SUBMIT ────────────────────────────────────────────────────────────────────
-async function submitContent() {
+async function addMovie() {
   if (!uploadedFileName) return toast('Upload the video first (Step 1)', 'error');
+  if (!selectedMovie) return toast('Select a movie from TMDB (Step 2)', 'error');
   const vj = document.getElementById('vjCustom').value.trim() || selectedVJ;
   const btn = document.getElementById('addBtn');
-
-  if (contentType === 'movie') {
-    if (!selectedMovie) return toast('Select a movie from TMDB (Step 2)', 'error');
-    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Adding...';
-    try {
-      const res = await fetch(`${ADMIN_API}/add-movie`, {
-        method:'POST', headers:{'Content-Type':'application/json','X-Session-Token':sessionToken},
-        body: JSON.stringify({ ...selectedMovie, fileName: uploadedFileName, vj }),
-      });
-      const data = await res.json();
-      if (data.success) { done(`🎉 "${selectedMovie.title}" is now live!`); }
-      else throw new Error(data.error);
-    } catch(e) { fail(e.message, '✅ Add Movie to Picha+'); }
-
-  } else if (contentType === 'series') {
-    if (!selectedMovie) return toast('Select a TV show from TMDB (Step 2)', 'error');
-    const epNum = document.getElementById('epNumber').value.trim();
-    if (!epNum) return toast('Enter episode number e.g. E01', 'error');
-    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Creating...';
-    try {
-      const res = await fetch(`${ADMIN_API}/add-series`, {
-        method:'POST', headers:{'Content-Type':'application/json','X-Session-Token':sessionToken},
-        body: JSON.stringify({
-          ...selectedMovie, vj,
-          episode: { ep: epNum, title: document.getElementById('epTitle').value.trim() || epNum, fileName: uploadedFileName }
-        }),
-      });
-      const data = await res.json();
-      if (data.success) { done(`🎉 Series "${selectedMovie.title}" created with ${epNum}!`); }
-      else throw new Error(data.error);
-    } catch(e) { fail(e.message, '✅ Create Series on Picha+'); }
-
-  } else if (contentType === 'episode') {
-    const seriesId = document.getElementById('existingSeriesSelect').value;
-    const epNum    = document.getElementById('epNumber').value.trim();
-    if (!seriesId) return toast('Select the series first', 'error');
-    if (!epNum)    return toast('Enter episode number e.g. E02', 'error');
-    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Adding...';
-    try {
-      const res = await fetch(`${ADMIN_API}/add-episode`, {
-        method:'POST', headers:{'Content-Type':'application/json','X-Session-Token':sessionToken},
-        body: JSON.stringify({
-          seriesId,
-          episode: { ep: epNum, title: document.getElementById('epTitle').value.trim() || epNum, fileName: uploadedFileName }
-        }),
-      });
-      const data = await res.json();
-      if (data.success) { done(`🎉 ${epNum} added to series!`); }
-      else throw new Error(data.error);
-    } catch(e) { fail(e.message, '✅ Add Episode to Series'); }
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Adding...';
+  try {
+    const res = await fetch(`${ADMIN_API}/add-movie`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ ...selectedMovie, fileName: uploadedFileName, vj }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('s3n').style.background = 'var(--green)';
+      showStatus('addStatus', `🎉 "${selectedMovie.title}" is now live on Picha+!`, 'success');
+      btn.innerHTML = '🎉 Added!';
+      toast('Movie added!', 'success');
+      setTimeout(resetForm, 3000);
+    } else throw new Error(data.error);
+  } catch(e) {
+    showStatus('addStatus', '❌ '+e.message, 'error');
+    btn.disabled = false; btn.innerHTML = '✅ Add Movie to Picha+';
   }
-}
-
-function done(msg) {
-  document.getElementById('s3n').style.background = 'var(--green)';
-  showStatus('addStatus', msg, 'success');
-  document.getElementById('addBtn').innerHTML = '🎉 Done!';
-  toast(msg, 'success');
-  setTimeout(resetForm, 3000);
-}
-function fail(msg, label) {
-  showStatus('addStatus', '❌ '+msg, 'error');
-  const btn = document.getElementById('addBtn');
-  btn.disabled = false; btn.innerHTML = label;
 }
 
 function resetForm() {
@@ -647,88 +506,45 @@ function resetForm() {
   document.getElementById('posterGrid').innerHTML = '';
   document.getElementById('moviePreview').innerHTML = '';
   document.getElementById('vjCustom').value = '';
-  document.getElementById('epNumber').value = '';
-  document.getElementById('epTitle').value = '';
   selectedMovie = null; uploadedFileName = null; selectedVJ = 'VJ Junior';
   ['s1n','s2n','s3n'].forEach((id,i) => { document.getElementById(id).textContent=i+1; document.getElementById(id).style.background='var(--gold)'; });
   ['uploadStatus','tmdbStatus','addStatus'].forEach(id => document.getElementById(id).style.display='none');
-  const labels = { movie:'✅ Add Movie to Picha+', series:'✅ Create Series on Picha+', episode:'✅ Add Episode to Series' };
-  document.getElementById('addBtn').innerHTML = labels[contentType];
+  document.getElementById('addBtn').innerHTML = '✅ Add Movie to Picha+';
   document.getElementById('addBtn').disabled = false;
   document.querySelectorAll('.vj-pill').forEach((p,i) => p.classList.toggle('active', i===0));
 }
 
-// ── CATALOG ───────────────────────────────────────────────────────────────────
-async function loadCatalog() {
+// ── MOVIES ────────────────────────────────────────────────────────────────────
+async function loadMovies() {
   document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
   try {
-    const res  = await fetch(`${ADMIN_API}/movies`, { headers: { 'X-Session-Token': sessionToken } });
+    const res = await fetch(`${ADMIN_API}/movies`, { headers: { 'X-Session-Token': sessionToken } });
     const data = await res.json();
-    const catalog = data.catalog || {};
-    const movies  = Object.values(catalog.movies  || {}).sort((a,b)=>(b.addedAt||0)-(a.addedAt||0));
-    const series  = Object.values(catalog.series  || {}).sort((a,b)=>(b.addedAt||0)-(a.addedAt||0));
-    const total   = movies.length + series.length;
-
-    if (!total) { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No content yet.</div>'; return; }
-
-    const moviesHTML = movies.length ? `
-      <div style="font-size:0.72rem;color:var(--gray);margin:0.4rem 0;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">🎬 Movies (${movies.length})</div>
-      ${movies.map(m=>`
+    if (!data.movies?.length) { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No movies yet.</div>'; return; }
+    document.getElementById('moviesList').innerHTML = `
+      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${data.movies.length} movies in catalog</div>
+      ${data.movies.map(m=>`
         <div class="card">
           <img src="${m.poster}" style="width:40px;height:60px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.display='none'"/>
           <div class="card-info">
             <div class="card-title">${esc(m.title)}</div>
-            <div class="card-meta">${m.year||''} · ⭐${m.rating||''} · ${m.vj||''}</div>
+            <div class="card-meta">${m.year} · ⭐${m.rating} · ${m.vj||''}</div>
           </div>
-          <button class="btn btn-red btn-sm" onclick="deleteItem('movie',${m.tmdbId},'${esc(m.title)}')">🗑</button>
-        </div>`).join('')}` : '';
-
-    const seriesHTML = series.length ? `
-      <div style="font-size:0.72rem;color:var(--gray);margin:0.8rem 0 0.4rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">📺 Series (${series.length})</div>
-      ${series.map(s=>`
-        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:0.8rem;margin-bottom:0.6rem;">
-          <div style="display:flex;align-items:center;gap:0.8rem;">
-            <img src="${s.poster}" style="width:40px;height:60px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.display='none'"/>
-            <div class="card-info">
-              <div class="card-title">${esc(s.title)}</div>
-              <div class="card-meta">${s.year||''} · ${s.vj||''} · ${(s.episodes||[]).length} ep</div>
-            </div>
-            <button class="btn btn-red btn-sm" onclick="deleteItem('series',${s.tmdbId},'${esc(s.title)}')">🗑</button>
-          </div>
-          ${(s.episodes||[]).length ? `
-          <div class="ep-list">
-            ${(s.episodes).map((ep,i)=>`
-              <div class="ep-item">
-                <div class="ep-num">${i+1}</div>
-                <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(ep.ep)} — ${esc(ep.title||'')}</div>
-                <button class="btn btn-red btn-sm" style="padding:0.18rem 0.45rem;font-size:0.65rem;flex-shrink:0;" onclick="deleteEpisode(${s.tmdbId},'${esc(s.title)}',${i})">✕</button>
-              </div>`).join('')}
-          </div>` : ''}
-        </div>`).join('')}` : '';
-
-    document.getElementById('moviesList').innerHTML = `
-      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.5rem;">${total} items in catalog</div>
-      ${moviesHTML}${seriesHTML}`;
+          <button class="btn btn-red btn-sm" onclick="deleteMovie(${m.tmdbId},'${esc(m.title)}')">🗑</button>
+        </div>`).join('')}`;
   } catch { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
 }
 
-async function deleteItem(type, tmdbId, title) {
+async function deleteMovie(tmdbId, title) {
   if (!confirm(`Delete "${title}"?`)) return;
-  const endpoint = type==='series' ? '/delete-series' : '/delete-movie';
   try {
-    const res  = await fetch(`${ADMIN_API}${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json','X-Session-Token':sessionToken}, body:JSON.stringify({tmdbId}) });
+    const res = await fetch(`${ADMIN_API}/delete-movie`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ tmdbId }),
+    });
     const data = await res.json();
-    if (data.success) { toast(`Deleted "${title}"`, 'success'); loadCatalog(); }
-    else throw new Error(data.error);
-  } catch(e) { toast('Failed: '+e.message, 'error'); }
-}
-
-async function deleteEpisode(seriesId, seriesTitle, epIndex) {
-  if (!confirm(`Delete episode ${epIndex+1} from "${seriesTitle}"?`)) return;
-  try {
-    const res  = await fetch(`${ADMIN_API}/delete-episode`, { method:'POST', headers:{'Content-Type':'application/json','X-Session-Token':sessionToken}, body:JSON.stringify({seriesId, epIndex}) });
-    const data = await res.json();
-    if (data.success) { toast('Episode deleted', 'success'); loadCatalog(); }
+    if (data.success) { toast(`Deleted "${title}"`, 'success'); loadMovies(); }
     else throw new Error(data.error);
   } catch(e) { toast('Failed: '+e.message, 'error'); }
 }
@@ -737,7 +553,7 @@ async function deleteEpisode(seriesId, seriesTitle, epIndex) {
 async function loadUsers() {
   document.getElementById('usersList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
   try {
-    const res  = await fetch(`${ADMIN_API}/users`, { headers: { 'X-Session-Token': sessionToken } });
+    const res = await fetch(`${ADMIN_API}/users`, { headers: { 'X-Session-Token': sessionToken } });
     const data = await res.json();
     document.getElementById('usersList').innerHTML = `
       <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${data.users.length} users</div>
@@ -757,14 +573,23 @@ async function loadUsers() {
   } catch { document.getElementById('usersList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
 }
 
-function openGrant(userId, name) { grantUserId=userId; document.getElementById('grantUserName').textContent=`Granting access to: ${name}`; document.getElementById('grantDays').value='30'; document.getElementById('grantModal').classList.add('active'); }
-function closeGrant() { document.getElementById('grantModal').classList.remove('active'); grantUserId=null; }
+function openGrant(userId, name) {
+  grantUserId = userId;
+  document.getElementById('grantUserName').textContent = `Granting access to: ${name}`;
+  document.getElementById('grantDays').value = '30';
+  document.getElementById('grantModal').classList.add('active');
+}
+function closeGrant() { document.getElementById('grantModal').classList.remove('active'); grantUserId = null; }
 
 async function confirmGrant() {
   const days = parseInt(document.getElementById('grantDays').value);
   if (!days||days<1) return toast('Enter valid number of days', 'error');
   try {
-    const res  = await fetch(`${ADMIN_API}/grant-sub`, { method:'POST', headers:{'Content-Type':'application/json','X-Session-Token':sessionToken}, body:JSON.stringify({userId:grantUserId, days}) });
+    const res = await fetch(`${ADMIN_API}/grant-sub`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ userId: grantUserId, days }),
+    });
     const data = await res.json();
     if (data.success) { toast(`✅ ${data.name} granted ${days} days!`, 'success'); closeGrant(); loadUsers(); }
     else throw new Error(data.error);
@@ -775,18 +600,18 @@ async function confirmGrant() {
 async function loadAdmins() {
   document.getElementById('adminsList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
   try {
-    const res  = await fetch(`${ADMIN_API}/admin-list`, { headers: { 'X-Session-Token': sessionToken } });
+    const res = await fetch(`${ADMIN_API}/admin-list`, { headers: { 'X-Session-Token': sessionToken } });
     const data = await res.json();
     document.getElementById('adminsList').innerHTML = `
       <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${data.admins.length} admins</div>
-      ${data.admins.map(a=>`
+      ${data.admins.map(a => `
         <div class="card">
-          <div style="font-size:1.4rem;flex-shrink:0;">${a.superAdmin?'👑':'🔑'}</div>
+          <div style="font-size:1.4rem;flex-shrink:0;">${a.superAdmin ? '👑' : '🔑'}</div>
           <div class="card-info">
             <div class="card-title">${esc(a.email)}</div>
             <span class="pill ${a.superAdmin?'pill-super':'pill-admin'}">${a.superAdmin?'SUPER ADMIN':'ADMIN'}</span>
           </div>
-          ${!a.superAdmin?`<button class="btn btn-red btn-sm" onclick="removeAdmin('${esc(a.email)}')">Remove</button>`:''}
+          ${!a.superAdmin ? `<button class="btn btn-red btn-sm" onclick="removeAdmin('${esc(a.email)}')">Remove</button>` : ''}
         </div>`).join('')}`;
   } catch { document.getElementById('adminsList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
 }
@@ -795,26 +620,47 @@ async function addAdmin() {
   const email = document.getElementById('newAdminEmail').value.trim();
   if (!email) return toast('Enter an email address', 'error');
   try {
-    const res  = await fetch(`${ADMIN_API}/admin-add`, { method:'POST', headers:{'Content-Type':'application/json','X-Session-Token':sessionToken}, body:JSON.stringify({email}) });
+    const res = await fetch(`${ADMIN_API}/admin-add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ email }),
+    });
     const data = await res.json();
-    if (data.success) { toast(`✅ ${email} added as admin!`,'success'); document.getElementById('newAdminEmail').value=''; showStatus('adminAddStatus',`✅ ${email} can now access the admin panel`,'success'); loadAdmins(); }
-    else throw new Error(data.error);
-  } catch(e) { showStatus('adminAddStatus','❌ '+e.message,'error'); }
+    if (data.success) {
+      toast(`✅ ${email} added as admin!`, 'success');
+      document.getElementById('newAdminEmail').value = '';
+      showStatus('adminAddStatus', `✅ ${email} can now access the admin panel`, 'success');
+      loadAdmins();
+    } else throw new Error(data.error);
+  } catch(e) { showStatus('adminAddStatus', '❌ '+e.message, 'error'); }
 }
 
 async function removeAdmin(email) {
   if (!confirm(`Remove ${email} from admins?`)) return;
   try {
-    const res  = await fetch(`${ADMIN_API}/admin-remove`, { method:'POST', headers:{'Content-Type':'application/json','X-Session-Token':sessionToken}, body:JSON.stringify({email}) });
+    const res = await fetch(`${ADMIN_API}/admin-remove`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ email }),
+    });
     const data = await res.json();
-    if (data.success) { toast(`Removed ${email}`,'success'); loadAdmins(); }
+    if (data.success) { toast(`Removed ${email}`, 'success'); loadAdmins(); }
     else throw new Error(data.error);
-  } catch(e) { toast('Failed: '+e.message,'error'); }
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-function showStatus(id, msg, type) { const el=document.getElementById(id); el.textContent=msg; el.className=`status ${type}`; el.style.display='block'; }
-function toast(msg, type='') { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className=`toast ${type}`; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3000); }
+function showStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.className = `status ${type}`; el.style.display = 'block';
+}
+function toast(msg, type='') {
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
 function esc(str) { return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 </script>
 </body>
