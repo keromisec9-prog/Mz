@@ -431,7 +431,8 @@ async function uploadVideo() {
     document.getElementById('progressWrap').style.display = 'block';
     btn.innerHTML = '<span class="spin"></span> Uploading...';
     await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
+      _epXHR = new XMLHttpRequest();
+      const xhr = _epXHR;
       xhr.open('POST', urlData.uploadUrl);
       xhr.setRequestHeader('Authorization', urlData.authorizationToken);
       xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
@@ -736,6 +737,8 @@ function openAddEpisode(seriesTmdbId, seriesTitle) {
   document.getElementById('episodeModal').style.display = 'flex';
 }
 function closeEpisodeModal() {
+  // Abort any in-progress upload
+  if (_epXHR) { try { _epXHR.abort(); } catch(e){} _epXHR = null; }
   document.getElementById('episodeModal').style.display = 'none';
   document.getElementById('episodeFileInput').value = '';
   document.getElementById('episodeFileName').value = '';
@@ -746,6 +749,9 @@ function closeEpisodeModal() {
   document.getElementById('episodeAddStatus').style.display = 'none';
   document.getElementById('epProgressWrap').style.display = 'none';
   document.getElementById('epProgressFill').style.width = '0%';
+  document.getElementById('epProgressLabel').textContent = '0%';
+  const btn = document.getElementById('episodeUploadBtn');
+  btn.disabled = false; btn.innerHTML = '⬆️ Upload & Add Episode';
 }
 document.addEventListener('DOMContentLoaded', () => {
   const epFile = document.getElementById('episodeFileInput');
@@ -761,6 +767,8 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('episodeFileName').value = `series/${sid}/s${sn}e${en}_${slug}.mp4`;
   });
 });
+
+let _epXHR = null; // track active upload so Cancel can abort it
 
 async function uploadAndAddEpisode() {
   const seriesTmdbId = document.getElementById('episodeSeriesId').value;
@@ -809,6 +817,7 @@ async function uploadAndAddEpisode() {
       xhr.onerror = () => reject(new Error('Network error during upload'));
       xhr.send(file);
     });
+    _epXHR = null;
     document.getElementById('epProgressFill').style.width = '100%';
     document.getElementById('epProgressLabel').textContent = '✅ Upload complete!';
     showStatus('episodeAddStatus','Adding episode to catalog...','info');
