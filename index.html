@@ -134,6 +134,8 @@ input[type=text]::placeholder { color: var(--gray2); }
   <div class="tabs" id="tabBar">
     <div class="tab active" onclick="switchTab('add')">➕ Add Movie</div>
     <div class="tab" onclick="switchTab('movies')">🎬 Movies</div>
+    <div class="tab" onclick="switchTab('addseries')">📺 Add Series</div>
+    <div class="tab" onclick="switchTab('series')">🎞 Series</div>
     <div class="tab" onclick="switchTab('users')">👥 Users</div>
     <div class="tab" id="adminsTab" style="display:none;" onclick="switchTab('admins')">🔑 Admins</div>
     <div class="tab" onclick="switchTab('site')">🌐 Site</div>
@@ -196,6 +198,30 @@ input[type=text]::placeholder { color: var(--gray2); }
       <div id="moviesList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
     </div>
 
+    <!-- ADD SERIES -->
+    <div class="tab-content" id="tab-addseries">
+      <div class="step">
+        <div class="step-header"><div class="step-num">1</div><div class="step-title">Find Series on TMDB</div></div>
+        <div class="search-row">
+          <input type="text" id="seriesTmdbQuery" placeholder="Search TV show title..." onkeydown="if(event.key==='Enter')searchSeriesTMDB()" style="margin-bottom:0;"/>
+          <button class="btn btn-gold" onclick="searchSeriesTMDB()">Search</button>
+        </div>
+        <div class="poster-grid" id="seriesPosterGrid"></div>
+        <div id="seriesPreview"></div>
+        <div class="status" id="seriesTmdbStatus"></div>
+      </div>
+      <div class="step">
+        <div class="step-header"><div class="step-num">2</div><div class="step-title">Add Series</div></div>
+        <button class="btn btn-gold btn-full btn-lg" id="addSeriesBtn" onclick="addSeries()">📺 Add Series to Picha+</button>
+        <div class="status" id="addSeriesStatus"></div>
+      </div>
+    </div>
+
+    <!-- SERIES LIST -->
+    <div class="tab-content" id="tab-series">
+      <div id="seriesList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
+    </div>
+
     <!-- USERS -->
     <div class="tab-content" id="tab-users">
       <div id="usersList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
@@ -246,6 +272,36 @@ input[type=text]::placeholder { color: var(--gray2); }
   </div>
 </div>
 
+
+<!-- ADD EPISODE MODAL -->
+<div class="modal-overlay" id="episodeModal" style="display:none;">
+  <div class="modal" style="max-width:420px;width:92%;">
+    <h3>Add Episode</h3>
+    <p style="font-size:0.82rem;color:var(--gray);margin-bottom:1rem;" id="episodeSeriesTitle"></p>
+    <input type="hidden" id="episodeSeriesId"/>
+    <label>Season</label>
+    <input type="number" id="episodeSeason" value="1" min="1" placeholder="1"/>
+    <label>Episode Number</label>
+    <input type="number" id="episodeNum" placeholder="e.g. 1" min="1"/>
+    <label>Episode Title (optional)</label>
+    <input type="text" id="episodeTitle" placeholder="e.g. Pilot"/>
+    <label>File Path (save as)</label>
+    <input type="text" id="episodeFileName" placeholder="series/123/s1e1_title.mp4"/>
+    <label>Video File</label>
+    <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('episodeFileInput').click()">Browse</button>
+      <span id="epSelFileName" style="font-size:0.8rem;color:var(--gray);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+    </div>
+    <input type="file" id="episodeFileInput" accept="video/*" style="display:none;"/>
+    <div class="status" id="episodeAddStatus" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-full" onclick="closeEpisodeModal()">Cancel</button>
+      <button class="btn btn-gold btn-full" id="episodeUploadBtn" onclick="uploadAndAddEpisode()">⬆️ Upload & Add Episode</button>
+    </div>
+  </div>
+</div>
+
+
 <script>
 const ADMIN_API = 'https://picha-admin-worker.kerosoftz522.workers.dev';
 const MAIN_API  = 'https://picha-plus-worker.kerosoftz522.workers.dev';
@@ -257,6 +313,7 @@ let uploadedFileName = null;
 let selectedVJ = 'VJ Junior';
 let grantUserId = null;
 let isSuperAdmin = false;
+let selectedSeries = null;
 
 window.addEventListener('load', async () => {
   const params = new URLSearchParams(window.location.search);
@@ -321,11 +378,12 @@ async function signOut() {
 }
 
 function switchTab(name) {
-  const tabs = ['add','movies','users','admins','site'];
+  const tabs = ['add','movies','addseries','series','users','admins','site'];
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
   if (name==='movies') loadMovies();
+  if (name==='series') loadSeries();
   if (name==='users') loadUsers();
   if (name==='admins') loadAdmins();
 }
@@ -548,6 +606,203 @@ async function deleteMovie(tmdbId, title) {
     if (data.success) { toast(`Deleted "${title}"`, 'success'); loadMovies(); }
     else throw new Error(data.error);
   } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
+
+
+// ── SERIES ────────────────────────────────────────────────────────────────────
+async function searchSeriesTMDB() {
+  const query = document.getElementById('seriesTmdbQuery').value.trim();
+  if (!query) return;
+  showStatus('seriesTmdbStatus', '🔍 Searching...', 'info');
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}&api_key=${TMDB_KEY}`);
+    const data = await res.json();
+    const results = data.results || [];
+    if (!results.length) { showStatus('seriesTmdbStatus','❌ No results found.','error'); document.getElementById('seriesPosterGrid').innerHTML=''; return; }
+    document.getElementById('seriesTmdbStatus').style.display='none';
+    window._seriesResults = results;
+    document.getElementById('seriesPosterGrid').innerHTML = results.slice(0,9).map((s,i) => {
+      const poster = s.poster_path ? `https://image.tmdb.org/t/p/w342${s.poster_path}` : null;
+      return `<div class="poster-item ${i===0?'selected':''}" onclick="selectSeriesResult(${i},this)">
+        ${poster ? `<img src="${poster}" alt="${esc(s.name)}"/>` : `<div class="poster-placeholder">🎬</div>`}
+        <div class="poster-title">${esc(s.name)} (${(s.first_air_date||'').slice(0,4)||'?'})</div>
+      </div>`;
+    }).join('');
+    selectSeriesResult(0, document.querySelector('#seriesPosterGrid .poster-item'));
+  } catch { showStatus('seriesTmdbStatus','❌ Search failed.','error'); }
+}
+
+async function selectSeriesResult(idx, el) {
+  document.querySelectorAll('#seriesPosterGrid .poster-item').forEach(e=>e.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  const s = window._seriesResults[idx];
+  showStatus('seriesTmdbStatus','Loading details...','info');
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/tv/${s.id}?api_key=${TMDB_KEY}`);
+    const full = await res.json();
+    selectedSeries = {
+      tmdbId: full.id, title: full.name,
+      poster: full.poster_path ? `https://image.tmdb.org/t/p/w300${full.poster_path}` : '',
+      backdrop: full.backdrop_path ? `https://image.tmdb.org/t/p/w780${full.backdrop_path}` : '',
+      year: (full.first_air_date||'').slice(0,4),
+      rating: full.vote_average ? full.vote_average.toFixed(1) : 'N/A',
+      overview: full.overview || '',
+      genreIds: (full.genres||[]).map(g=>g.id),
+      seasons: full.number_of_seasons || 1,
+      episodes: full.number_of_episodes || 0,
+    };
+    document.getElementById('seriesTmdbStatus').style.display='none';
+    document.getElementById('seriesPreview').innerHTML = `
+      <div class="movie-preview">
+        ${selectedSeries.poster ? `<img src="${selectedSeries.poster}" alt="${esc(selectedSeries.title)}"/>` : ''}
+        <div>
+          <div style="font-weight:700;margin-bottom:0.3rem;">${esc(selectedSeries.title)}</div>
+          <div style="font-size:0.78rem;color:var(--gray);">${selectedSeries.year} · ⭐${selectedSeries.rating}</div>
+          <div style="font-size:0.78rem;color:var(--gray);">${selectedSeries.seasons} season(s) · ${selectedSeries.episodes} episodes</div>
+          <div style="font-size:0.75rem;color:var(--gray2);margin-top:0.4rem;">${esc(selectedSeries.overview.slice(0,120))}${selectedSeries.overview.length>120?'…':''}</div>
+        </div>
+      </div>`;
+  } catch { toast('Could not load series details', 'error'); }
+}
+
+async function addSeries() {
+  if (!selectedSeries) return toast('Select a series from TMDB (Step 1)', 'error');
+  const btn = document.getElementById('addSeriesBtn');
+  btn.disabled = true; btn.innerHTML = '⏳ Adding...';
+  try {
+    const res = await fetch(`${ADMIN_API}/add-series`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify(selectedSeries),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showStatus('addSeriesStatus', `✅ "${selectedSeries.title}" added!`, 'success');
+      toast(`"${selectedSeries.title}" added to Picha+`, 'success');
+      selectedSeries = null;
+      document.getElementById('seriesPreview').innerHTML = '';
+      document.getElementById('seriesPosterGrid').innerHTML = '';
+      document.getElementById('seriesTmdbQuery').value = '';
+    } else throw new Error(data.error);
+  } catch(e) { showStatus('addSeriesStatus', '❌ '+e.message, 'error'); }
+  btn.disabled = false; btn.innerHTML = '📺 Add Series to Picha+';
+}
+
+async function loadSeries() {
+  document.getElementById('seriesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API}/series`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    if (!data.series?.length) { document.getElementById('seriesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No series yet.</div>'; return; }
+    document.getElementById('seriesList').innerHTML = `
+      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${data.series.length} series in catalog</div>
+      ${data.series.map(s=>`
+        <div class="card" style="flex-direction:column;align-items:stretch;gap:0.5rem;">
+          <div style="display:flex;gap:0.8rem;align-items:center;">
+            <img src="${s.poster}" style="width:40px;height:60px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.display='none'"/>
+            <div class="card-info" style="flex:1;">
+              <div class="card-title">${esc(s.title)}</div>
+              <div class="card-meta">${s.year} · ⭐${s.rating} · ${s.seasons} season(s) · ${Object.keys(s.episodes||{}).length} episodes added</div>
+            </div>
+            <button class="btn btn-red btn-sm" onclick="deleteSeries(${s.tmdbId},'${esc(s.title)}')">🗑</button>
+          </div>
+          <button class="btn btn-outline btn-sm btn-full" onclick="openAddEpisode(${s.tmdbId},'${esc(s.title)}')">➕ Add Episode</button>
+        </div>`).join('')}`;
+  } catch { document.getElementById('seriesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
+}
+
+async function deleteSeries(tmdbId, title) {
+  if (!confirm(`Delete "${title}" and all its episodes?`)) return;
+  try {
+    const res = await fetch(`${ADMIN_API}/delete-series`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ tmdbId }),
+    });
+    const data = await res.json();
+    if (data.success) { toast(`Deleted "${title}"`, 'success'); loadSeries(); }
+    else throw new Error(data.error);
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
+
+// ── ADD EPISODE MODAL ─────────────────────────────────────────────────────────
+function openAddEpisode(seriesTmdbId, seriesTitle) {
+  document.getElementById('episodeSeriesId').value = seriesTmdbId;
+  document.getElementById('episodeSeriesTitle').textContent = seriesTitle;
+  document.getElementById('episodeModal').style.display = 'flex';
+}
+function closeEpisodeModal() {
+  document.getElementById('episodeModal').style.display = 'none';
+  document.getElementById('episodeFileInput').value = '';
+  document.getElementById('episodeFileName').value = '';
+  document.getElementById('epSelFileName').textContent = '';
+  document.getElementById('episodeNum').value = '';
+  document.getElementById('episodeSeason').value = '1';
+  document.getElementById('episodeTitle').value = '';
+  document.getElementById('episodeAddStatus').style.display = 'none';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const epFile = document.getElementById('episodeFileInput');
+  if (epFile) epFile.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('epSelFileName').textContent = file.name;
+    const slug = file.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+    const sid = document.getElementById('episodeSeriesId').value;
+    const sn = document.getElementById('episodeSeason').value || '1';
+    const en = document.getElementById('episodeNum').value || '1';
+    if (!document.getElementById('episodeFileName').value)
+      document.getElementById('episodeFileName').value = `series/${sid}/s${sn}e${en}_${slug}.mp4`;
+  });
+});
+
+async function uploadAndAddEpisode() {
+  const seriesTmdbId = document.getElementById('episodeSeriesId').value;
+  const season = parseInt(document.getElementById('episodeSeason').value) || 1;
+  const epNum  = parseInt(document.getElementById('episodeNum').value);
+  const epTitle = document.getElementById('episodeTitle').value.trim();
+  const fileName = document.getElementById('episodeFileName').value.trim();
+  const fileInput = document.getElementById('episodeFileInput');
+  if (!epNum) return toast('Enter episode number', 'error');
+  if (!fileName) return toast('Enter a file path', 'error');
+  if (!fileInput.files[0]) return toast('Select a video file', 'error');
+  const btn = document.getElementById('episodeUploadBtn');
+  btn.disabled = true; btn.innerHTML = '⏳ Uploading...';
+  showStatus('episodeAddStatus','Uploading video...','info');
+  try {
+    // Get B2 upload URL
+    const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
+      headers: { 'X-Session-Token': sessionToken }
+    });
+    const { uploadUrl, authToken } = await urlRes.json();
+    // Upload to B2
+    const file = fileInput.files[0];
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': authToken,
+        'X-Bz-File-Name': encodeURIComponent(fileName),
+        'Content-Type': file.type || 'video/mp4',
+        'X-Bz-Content-Sha1': 'do_not_verify',
+      },
+      body: file,
+    });
+    if (!uploadRes.ok) throw new Error('Upload failed');
+    showStatus('episodeAddStatus','Adding episode to catalog...','info');
+    // Save episode to catalog
+    const res = await fetch(`${ADMIN_API}/add-episode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ seriesTmdbId, season, episode: epNum, title: epTitle, fileName }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showStatus('episodeAddStatus', `✅ S${season}E${epNum} added!`, 'success');
+      toast(`Episode added!`, 'success');
+      loadSeries();
+    } else throw new Error(data.error);
+  } catch(e) { showStatus('episodeAddStatus','❌ '+e.message,'error'); }
+  btn.disabled = false; btn.innerHTML = '⬆️ Upload & Add Episode';
 }
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
