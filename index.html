@@ -269,8 +269,9 @@ window.addEventListener('load', async () => {
   } else {
     sessionToken = localStorage.getItem('pichaplus_admin_session');
   }
+  const reasonParam = params.get('reason') || '';
   if (errParam === 'not_admin') showGateErr('❌ Your account is not authorized as admin.');
-  else if (errParam) showGateErr('❌ Sign in failed. Please try again.');
+  else if (errParam) showGateErr(`❌ Sign in failed: ${reasonParam || errParam}`);
   if (sessionToken) await checkAdmin();
 });
 
