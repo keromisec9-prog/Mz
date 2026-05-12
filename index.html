@@ -187,7 +187,7 @@ input[type=text]::placeholder { color: var(--gray2); }
           <div class="vj-pill" onclick="selectVJ('VJ CB',this)">VJ CB</div>
         </div>
         <label>Custom VJ (optional)</label>
-        <input type="text" id="vjCustom" placeholder="Type a different VJ name..."/>
+        <input type="text" id="vjCustom" placeholder="Type a different VJ name..." oninput="if(this.value.trim()){document.querySelectorAll('#tab-add .vj-pill').forEach(p=>p.classList.remove('active'));selectedVJ=this.value.trim();}"/>
         <button class="btn btn-gold btn-full btn-lg" id="addBtn" onclick="addMovie()">✅ Add Movie to Picha+</button>
         <div class="status" id="addStatus"></div>
       </div>
@@ -211,7 +211,21 @@ input[type=text]::placeholder { color: var(--gray2); }
         <div class="status" id="seriesTmdbStatus"></div>
       </div>
       <div class="step">
-        <div class="step-header"><div class="step-num">2</div><div class="step-title">Add Series</div></div>
+        <div class="step-header"><div class="step-num">2</div><div class="step-title">Select VJ & Add</div></div>
+        <label>VJ Name</label>
+        <div class="vj-row">
+          <div class="vj-pill active" onclick="selectSeriesVJ('VJ Junior',this)">VJ Junior</div>
+          <div class="vj-pill" onclick="selectSeriesVJ('VJ Ice P',this)">VJ Ice P</div>
+          <div class="vj-pill" onclick="selectSeriesVJ('VJ Uncle T',this)">VJ Uncle T</div>
+          <div class="vj-pill" onclick="selectSeriesVJ('VJ Emmy',this)">VJ Emmy</div>
+          <div class="vj-pill" onclick="selectSeriesVJ('VJ Kevin',this)">VJ Kevin</div>
+          <div class="vj-pill" onclick="selectSeriesVJ('VJ Shield',this)">VJ Shield</div>
+          <div class="vj-pill" onclick="selectSeriesVJ('VJ Mark',this)">VJ Mark</div>
+          <div class="vj-pill" onclick="selectSeriesVJ('VJ CB',this)">VJ CB</div>
+        </div>
+        <label>Custom VJ (optional)</label>
+        <input type="text" id="seriesVjCustom" placeholder="Type a different VJ name..."
+          oninput="if(this.value.trim()){document.querySelectorAll('#tab-addseries .vj-pill').forEach(p=>p.classList.remove('active'));selectedSeriesVJ=this.value.trim();}"/>
         <button class="btn btn-gold btn-full btn-lg" id="addSeriesBtn" onclick="addSeries()">📺 Add Series to Picha+</button>
         <div class="status" id="addSeriesStatus"></div>
       </div>
@@ -318,6 +332,7 @@ let selectedVJ = 'VJ Junior';
 let grantUserId = null;
 let isSuperAdmin = false;
 let selectedSeries = null;
+let selectedSeriesVJ = 'VJ Junior';
 
 window.addEventListener('load', async () => {
   const params = new URLSearchParams(window.location.search);
@@ -524,6 +539,13 @@ async function selectMovie(idx) {
   } catch { toast('Could not load movie details', 'error'); }
 }
 
+function selectSeriesVJ(vj, el) {
+  selectedSeriesVJ = vj;
+  document.querySelectorAll('#tab-addseries .vj-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('seriesVjCustom').value = '';
+}
+
 function selectVJ(vj, el) {
   selectedVJ = vj;
   document.querySelectorAll('.vj-pill').forEach(p=>p.classList.remove('active'));
@@ -672,13 +694,14 @@ async function selectSeriesResult(idx, el) {
 
 async function addSeries() {
   if (!selectedSeries) return toast('Select a series from TMDB (Step 1)', 'error');
+  const vj = document.getElementById('seriesVjCustom').value.trim() || selectedSeriesVJ;
   const btn = document.getElementById('addSeriesBtn');
   btn.disabled = true; btn.innerHTML = '⏳ Adding...';
   try {
     const res = await fetch(`${ADMIN_API}/add-series`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-      body: JSON.stringify(selectedSeries),
+      body: JSON.stringify({ ...selectedSeries, vj }),
     });
     const data = await res.json();
     if (data.success) {
