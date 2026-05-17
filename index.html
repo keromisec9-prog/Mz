@@ -188,6 +188,8 @@ input[type=text]::placeholder { color: var(--gray2); }
         </div>
         <label>Custom VJ (optional)</label>
         <input type="text" id="vjCustom" placeholder="Type a different VJ name..." oninput="if(this.value.trim()){document.querySelectorAll('#tab-add .vj-pill').forEach(p=>p.classList.remove('active'));selectedVJ=this.value.trim();}"/>
+        <label style="margin-top:0.8rem;">Part (optional)</label>
+        <input type="text" id="moviePart" placeholder="e.g. Part 1, Part 2, Director's Cut..." style="margin-bottom:0.5rem;"/>
         <button class="btn btn-gold btn-full btn-lg" id="addBtn" onclick="addMovie()">✅ Add Movie to Picha+</button>
         <div class="status" id="addStatus"></div>
       </div>
@@ -563,7 +565,7 @@ async function addMovie() {
     const res = await fetch(`${ADMIN_API}/add-movie`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-      body: JSON.stringify({ ...selectedMovie, fileName: uploadedFileName, vj }),
+      body: JSON.stringify({ ...selectedMovie, fileName: uploadedFileName, vj, part: document.getElementById('moviePart').value.trim() || null }),
     });
     const data = await res.json();
     if (data.success) {
@@ -582,6 +584,7 @@ async function addMovie() {
 function resetForm() {
   document.getElementById('fileInput').value = '';
   document.getElementById('fileNameInput').value = '';
+  document.getElementById('moviePart').value = '';
   document.getElementById('fileSearch').value = '';
   document.getElementById('selFileName').textContent = '';
   document.getElementById('progressWrap').style.display = 'none';
