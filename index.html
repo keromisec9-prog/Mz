@@ -737,7 +737,7 @@ async function loadSeries() {
             </div>
             <button class="btn btn-red btn-sm" onclick="deleteSeries(${s.tmdbId},'${esc(s.title)}')">🗑</button>
           </div>
-          <button class="btn btn-outline btn-sm btn-full" onclick="openAddEpisode(${s.tmdbId},'${esc(s.title)}')">➕ Add Episode</button>
+          <button class="btn btn-outline btn-sm btn-full" onclick="openAddEpisode('${s._key}','${esc(s.title)}')">➕ Add Episode</button>
         </div>`).join('')}`;
   } catch { document.getElementById('seriesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
 }
@@ -851,7 +851,7 @@ async function uploadAndAddEpisode() {
     const res = await fetch(`${ADMIN_API}/add-episode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-      body: JSON.stringify({ seriesTmdbId, season, episode: epNum, title: epTitle, fileName }),
+      body: JSON.stringify({ seriesKey: seriesTmdbId, season, episode: epNum, title: epTitle, fileName }),
     });
     const data = await res.json();
     if (data.success) {
