@@ -538,9 +538,10 @@ async function uploadVideo() {
               xhr.onload = () => {
                 if (xhr.status === 200) {
                   const resp = JSON.parse(xhr.responseText);
-                  resolve(resp.contentSha1 || 'do_not_verify');
+                  // B2 returns the real SHA1 even when we send do_not_verify
+                  resolve(resp.contentSha1);
                 } else {
-                  reject(new Error('Part failed: ' + xhr.status));
+                  reject(new Error('Part failed: ' + xhr.status + ' ' + xhr.responseText));
                 }
               };
               xhr.onerror = () => reject(new Error('Network error on part ' + partNumber));
@@ -561,6 +562,7 @@ async function uploadVideo() {
 
       // Finish large file
       btn.innerHTML = '<span class="spin"></span> Finishing...';
+      console.log('Finishing with SHA1s:', partSha1Array);
       const finishRes = await fetch(`${ADMIN_API}/b2-finish-large-file`, {
         method: 'POST',
         headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
