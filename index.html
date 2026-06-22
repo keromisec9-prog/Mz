@@ -337,9 +337,13 @@ let selectedSeries = null;
 let selectedSeriesVJ = 'VJ Junior';
 
 window.addEventListener('load', async () => {
-  const params = new URLSearchParams(window.location.search);
-  const tok = params.get('session');
-  const errParam = params.get('error');
+  // Check hash fragment first (OAuth callback uses hash to survive redirects)
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  const queryParams = new URLSearchParams(window.location.search);
+
+  const tok = hashParams.get('session') || queryParams.get('session');
+  const errParam = hashParams.get('error') || queryParams.get('error');
+
   if (tok) {
     sessionToken = tok;
     localStorage.setItem('pichaplus_admin_session', tok);
@@ -347,7 +351,7 @@ window.addEventListener('load', async () => {
   } else {
     sessionToken = localStorage.getItem('pichaplus_admin_session');
   }
-  const reasonParam = params.get('reason') || '';
+  const reasonParam = hashParams.get('reason') || queryParams.get('reason') || '';
   if (errParam === 'not_admin') showGateErr('❌ Your account is not authorized as admin.');
   else if (errParam) showGateErr(`❌ Sign in failed: ${reasonParam || errParam}`);
   if (sessionToken) await checkAdmin();
