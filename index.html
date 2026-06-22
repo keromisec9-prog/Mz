@@ -447,54 +447,128 @@ async function uploadVideo() {
   if (!file) return toast('Please select a video file first', 'error');
   if (!fileName) return toast('Please enter a file path', 'error');
   const btn = document.getElementById('uploadBtn');
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Getting upload URL...';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Starting upload...';
+  document.getElementById('progressWrap').style.display = 'block';
+
+  const CHUNK_SIZE = 20 * 1024 * 1024; // 20MB per chunk
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const updateProgress = (uploadedBytes) => {
+    const pct = Math.round(uploadedBytes / file.size * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent =
+      `${pct}% — ${(uploadedBytes/1024/1024).toFixed(1)} MB / ${(file.size/1024/1024).toFixed(1)} MB`;
+  };
+
   try {
-    const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
-      headers: { 'X-Session-Token': sessionToken }
-    });
-    const urlData = await urlRes.json();
-    if (!urlRes.ok) throw new Error(urlData.error || 'Failed to get upload URL');
-    document.getElementById('progressWrap').style.display = 'block';
-    btn.innerHTML = '<span class="spin"></span> Uploading...';
-    const doUpload = (uploadUrl, authToken) => new Promise((resolve, reject) => {
-      _epXHR = new XMLHttpRequest();
-      const xhr = _epXHR;
-      xhr.open('POST', uploadUrl);
-      xhr.setRequestHeader('Authorization', authToken);
-      xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
-      xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
-      xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
-      xhr.upload.onprogress = e => {
-        if (e.lengthComputable) {
-          const pct = Math.round((e.loaded/e.total)*100);
-          document.getElementById('progressFill').style.width = pct+'%';
-          document.getElementById('progressLabel').textContent = `${pct}% — ${(e.loaded/1024/1024).toFixed(1)} MB / ${(e.total/1024/1024).toFixed(1)} MB`;
+    // Use single upload for files under 20MB
+    if (file.size <= CHUNK_SIZE) {
+      const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
+        headers: { 'X-Session-Token': sessionToken }
+      });
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData.error || 'Failed to get upload URL');
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', urlData.uploadUrl);
+        xhr.setRequestHeader('Authorization', urlData.authorizationToken);
+        xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+        xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+        xhr.upload.onprogress = e => { if (e.lengthComputable) updateProgress(e.loaded); };
+        xhr.onload = () => xhr.status === 200 ? resolve() : reject(new Error('Upload failed: ' + xhr.status));
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.send(file);
+      });
+    } else {
+      // Multipart upload for large files
+      btn.innerHTML = '<span class="spin"></span> Starting multipart upload...';
+      const startRes = await fetch(`${ADMIN_API}/b2-start-large-file`, {
+        method: 'POST',
+        headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName })
+      });
+      const startData = await startRes.json();
+      if (!startRes.ok) throw new Error(startData.error || 'Failed to start upload');
+
+      const { fileId, authorizationToken, apiUrl } = startData;
+      const partSha1Array = [];
+      let uploadedBytes = 0;
+
+      for (let i = 0; i < totalChunks; i++) {
+        const partNumber = i + 1;
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        btn.innerHTML = `<span class="spin"></span> Part ${partNumber}/${totalChunks}...`;
+
+        // Get upload URL for this part (retry up to 3 times)
+        let partUrl, partAuth;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const partUrlRes = await fetch(`${ADMIN_API}/b2-upload-part-url`, {
+              method: 'POST',
+              headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileId, authorizationToken, apiUrl })
+            });
+            const partUrlData = await partUrlRes.json();
+            partUrl = partUrlData.uploadUrl;
+            partAuth = partUrlData.authorizationToken;
+            break;
+          } catch(e) {
+            if (attempt === 2) throw e;
+            await new Promise(r => setTimeout(r, 2000));
+          }
         }
-      };
-      xhr.onload = () => xhr.status===200 ? resolve() : reject(new Error('Upload failed: '+xhr.status));
-      xhr.onerror = () => reject(new Error('Network error'));
-      xhr.send(file);
-    });
-    // Auto-retry up to 5 times with a fresh upload URL each time
-    let _lastErr;
-    for (let attempt = 1; attempt <= 5; attempt++) {
-      try {
-        if (attempt > 1) {
-          document.getElementById('progressLabel').textContent = `⚠️ Retrying... (attempt ${attempt}/5)`;
-          await new Promise(r => setTimeout(r, 2000));
-          const retryRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
-            headers: { 'X-Session-Token': sessionToken }
-          });
-          const retryData = await retryRes.json();
-          urlData.uploadUrl = retryData.uploadUrl;
-          urlData.authorizationToken = retryData.authorizationToken;
+
+        // Upload part with retry
+        let sha1;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            sha1 = await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', partUrl);
+              xhr.setRequestHeader('Authorization', partAuth);
+              xhr.setRequestHeader('X-Bz-Part-Number', partNumber);
+              xhr.setRequestHeader('Content-Length', chunk.size);
+              xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+              xhr.upload.onprogress = e => {
+                if (e.lengthComputable) updateProgress(uploadedBytes + e.loaded);
+              };
+              xhr.onload = () => {
+                if (xhr.status === 200) {
+                  const resp = JSON.parse(xhr.responseText);
+                  resolve(resp.contentSha1 || 'do_not_verify');
+                } else {
+                  reject(new Error('Part failed: ' + xhr.status));
+                }
+              };
+              xhr.onerror = () => reject(new Error('Network error on part ' + partNumber));
+              xhr.send(chunk);
+            });
+            break;
+          } catch(e) {
+            if (attempt === 2) throw e;
+            document.getElementById('progressLabel').textContent += ` ⚠️ Retrying part ${partNumber}...`;
+            await new Promise(r => setTimeout(r, 3000));
+          }
         }
-        await doUpload(urlData.uploadUrl, urlData.authorizationToken);
-        _lastErr = null;
-        break;
-      } catch(e) { _lastErr = e; }
+
+        partSha1Array.push(sha1);
+        uploadedBytes += chunk.size;
+        updateProgress(uploadedBytes);
+      }
+
+      // Finish large file
+      btn.innerHTML = '<span class="spin"></span> Finishing...';
+      const finishRes = await fetch(`${ADMIN_API}/b2-finish-large-file`, {
+        method: 'POST',
+        headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, partSha1Array, authorizationToken, apiUrl })
+      });
+      const finishData = await finishRes.json();
+      if (!finishRes.ok) throw new Error(finishData.error || 'Failed to finish upload');
     }
-    if (_lastErr) throw _lastErr;
     uploadedFileName = fileName;
     document.getElementById('progressFill').style.width = '100%';
     document.getElementById('progressLabel').textContent = '✅ Upload complete!';
