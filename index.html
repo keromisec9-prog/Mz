@@ -456,11 +456,11 @@ async function uploadVideo() {
     if (!urlRes.ok) throw new Error(urlData.error || 'Failed to get upload URL');
     document.getElementById('progressWrap').style.display = 'block';
     btn.innerHTML = '<span class="spin"></span> Uploading...';
-    await new Promise((resolve, reject) => {
+    const doUpload = (uploadUrl, authToken) => new Promise((resolve, reject) => {
       _epXHR = new XMLHttpRequest();
       const xhr = _epXHR;
-      xhr.open('POST', urlData.uploadUrl);
-      xhr.setRequestHeader('Authorization', urlData.authorizationToken);
+      xhr.open('POST', uploadUrl);
+      xhr.setRequestHeader('Authorization', authToken);
       xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
       xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
       xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
@@ -475,6 +475,26 @@ async function uploadVideo() {
       xhr.onerror = () => reject(new Error('Network error'));
       xhr.send(file);
     });
+    // Auto-retry up to 5 times with a fresh upload URL each time
+    let _lastErr;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        if (attempt > 1) {
+          document.getElementById('progressLabel').textContent = `⚠️ Retrying... (attempt ${attempt}/5)`;
+          await new Promise(r => setTimeout(r, 2000));
+          const retryRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
+            headers: { 'X-Session-Token': sessionToken }
+          });
+          const retryData = await retryRes.json();
+          urlData.uploadUrl = retryData.uploadUrl;
+          urlData.authorizationToken = retryData.authorizationToken;
+        }
+        await doUpload(urlData.uploadUrl, urlData.authorizationToken);
+        _lastErr = null;
+        break;
+      } catch(e) { _lastErr = e; }
+    }
+    if (_lastErr) throw _lastErr;
     uploadedFileName = fileName;
     document.getElementById('progressFill').style.width = '100%';
     document.getElementById('progressLabel').textContent = '✅ Upload complete!';
