@@ -364,12 +364,17 @@ async function checkAdmin() {
       document.getElementById('navUser').textContent = data.name || data.email;
       document.getElementById('signOutBtn').style.display = 'block';
       if (isSuperAdmin) document.getElementById('adminsTab').style.display = 'block';
+    } else if (res.status === 401 || res.status === 403) {
+      // Session expired or invalid — clear and show sign in
+      localStorage.removeItem('pichaplus_admin_session');
+      sessionToken = null;
+      showGateErr('');
     } else {
       showGateErr('❌ Your account is not authorized as admin.');
       localStorage.removeItem('pichaplus_admin_session');
     }
   } catch(e) {
-    showGateErr('❌ Could not connect to server. Error: ' + e.message + ' | Token: ' + (sessionToken ? sessionToken.slice(0,20) : 'none'));
+    showGateErr('❌ Could not connect to server. Error: ' + e.message);
   }
 }
 
