@@ -539,7 +539,8 @@ async function uploadVideo() {
                 if (xhr.status === 200) {
                   const resp = JSON.parse(xhr.responseText);
                   // B2 returns the real SHA1 even when we send do_not_verify
-                  resolve(resp.contentSha1);
+                  const sha1 = resp.contentSha1 || '';
+                  resolve(sha1.replace('unverified:', ''));
                 } else {
                   reject(new Error('Part failed: ' + xhr.status + ' ' + xhr.responseText));
                 }
