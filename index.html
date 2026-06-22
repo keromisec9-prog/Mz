@@ -368,8 +368,8 @@ async function checkAdmin() {
       showGateErr('❌ Your account is not authorized as admin.');
       localStorage.removeItem('pichaplus_admin_session');
     }
-  } catch {
-    showGateErr('❌ Could not connect to server.');
+  } catch(e) {
+    showGateErr('❌ Could not connect to server. Error: ' + e.message + ' | Token: ' + (sessionToken ? sessionToken.slice(0,20) : 'none'));
   }
 }
 
