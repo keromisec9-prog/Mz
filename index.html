@@ -172,6 +172,19 @@ input[type=text]::placeholder { color: var(--gray2); }
         <div class="poster-grid" id="posterGrid"></div>
         <div id="moviePreview"></div>
         <div class="status" id="tmdbStatus"></div>
+        <details style="margin-top:0.6rem;">
+          <summary style="font-size:0.75rem;color:#666;cursor:pointer;user-select:none;">⚙️ Custom Poster (optional)</summary>
+          <div style="margin-top:0.5rem;">
+            <div style="font-size:0.72rem;color:#888;margin-bottom:0.4rem;">Upload a custom poster image to override TMDB. Served via Cloudflare CDN.</div>
+            <input type="file" id="movieCustomPosterFile" accept="image/*" style="display:none;" onchange="previewCustomPoster_movie(this)"/>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+              <button class="btn" onclick="document.getElementById('movieCustomPosterFile').click()" style="font-size:0.75rem;padding:0.35rem 0.7rem;">📁 Choose Image</button>
+              <button class="btn btn-gold" id="movieCustomPosterUploadBtn" onclick="uploadCustomPoster_movie()" style="font-size:0.75rem;padding:0.35rem 0.7rem;display:none;">⬆️ Upload</button>
+              <span id="movieCustomPosterStatus" style="font-size:0.72rem;color:#888;"></span>
+            </div>
+            <img id="movieCustomPosterPreview" src="" style="display:none;width:70px;margin-top:0.4rem;border-radius:4px;"/>
+          </div>
+        </details>
       </div>
       <div class="step">
         <div class="step-header"><div class="step-num" id="s3n">3</div><div class="step-title">Select VJ & Add</div></div>
@@ -211,6 +224,20 @@ input[type=text]::placeholder { color: var(--gray2); }
         <div class="poster-grid" id="seriesPosterGrid"></div>
         <div id="seriesPreview"></div>
         <div class="status" id="seriesTmdbStatus"></div>
+        <!-- Custom poster — advanced option, collapsed by default -->
+        <details style="margin-top:0.6rem;">
+          <summary style="font-size:0.75rem;color:#666;cursor:pointer;user-select:none;">⚙️ Custom Poster (optional)</summary>
+          <div style="margin-top:0.5rem;">
+            <div style="font-size:0.72rem;color:#888;margin-bottom:0.4rem;">Upload a custom poster image to override TMDB. Served via Cloudflare CDN.</div>
+            <input type="file" id="seriesCustomPosterFile" accept="image/*" style="display:none;" onchange="previewCustomPoster_series(this)"/>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+              <button class="btn" onclick="document.getElementById('seriesCustomPosterFile').click()" style="font-size:0.75rem;padding:0.35rem 0.7rem;">📁 Choose Image</button>
+              <button class="btn btn-gold" id="seriesCustomPosterUploadBtn" onclick="uploadCustomPoster_series()" style="font-size:0.75rem;padding:0.35rem 0.7rem;display:none;">⬆️ Upload</button>
+              <span id="seriesCustomPosterStatus" style="font-size:0.72rem;color:#888;"></span>
+            </div>
+            <img id="seriesCustomPosterPreview" src="" style="display:none;width:70px;margin-top:0.4rem;border-radius:4px;"/>
+          </div>
+        </details>
       </div>
       <div class="step">
         <div class="step-header"><div class="step-num">2</div><div class="step-title">Select VJ & Add</div></div>
@@ -644,7 +671,6 @@ async function selectMovie(idx) {
       </div>`;
     document.getElementById('s2n').style.background = 'var(--green)';
     toast('Movie selected! Choose VJ and add 👇', 'success');
-    document.getElementById('customPosterSection').style.display = 'block';
   } catch { toast('Could not load movie details', 'error'); }
 }
 
@@ -663,61 +689,85 @@ function selectVJ(vj, el) {
 }
 
 let customPosterUrl = null;
+let seriesCustomPosterUrl = null;
 
-function previewCustomPoster(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const preview = document.getElementById('customPosterPreview');
-  preview.src = URL.createObjectURL(file);
-  preview.style.display = 'block';
-  document.getElementById('customPosterUploadBtn').style.display = 'inline-block';
-  document.getElementById('customPosterStatus').textContent = file.name;
+function previewCustomPoster_movie(input) {
+  const file = input.files[0]; if (!file) return;
+  document.getElementById('movieCustomPosterPreview').src = URL.createObjectURL(file);
+  document.getElementById('movieCustomPosterPreview').style.display = 'block';
+  document.getElementById('movieCustomPosterUploadBtn').style.display = 'inline-block';
+  document.getElementById('movieCustomPosterStatus').textContent = file.name;
 }
 
-async function uploadCustomPoster() {
-  const file = document.getElementById('customPosterFile').files[0];
+function previewCustomPoster_series(input) {
+  const file = input.files[0]; if (!file) return;
+  document.getElementById('seriesCustomPosterPreview').src = URL.createObjectURL(file);
+  document.getElementById('seriesCustomPosterPreview').style.display = 'block';
+  document.getElementById('seriesCustomPosterUploadBtn').style.display = 'inline-block';
+  document.getElementById('seriesCustomPosterStatus').textContent = file.name;
+}
+
+async function _uploadCustomPosterFile(file, tmdbId, prefix) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const fileName = 'posters/' + Date.now() + '_' + (tmdbId || 'custom') + '.' + ext;
+  const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
+    headers: { 'X-Session-Token': sessionToken }
+  });
+  const urlData = await urlRes.json();
+  if (!urlRes.ok) throw new Error(urlData.error || 'Failed to get upload URL');
+  await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', urlData.uploadUrl);
+    xhr.setRequestHeader('Authorization', urlData.authorizationToken);
+    xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+    xhr.setRequestHeader('Content-Type', file.type || 'image/jpeg');
+    xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+    xhr.onload = () => xhr.status < 300 ? resolve() : reject(new Error('Upload failed'));
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(file);
+  });
+  return `${ADMIN_API}/poster/` + fileName.replace('posters/', '');
+}
+
+async function uploadCustomPoster_movie() {
+  const file = document.getElementById('movieCustomPosterFile').files[0];
   if (!file) return;
-  const btn = document.getElementById('customPosterUploadBtn');
-  const status = document.getElementById('customPosterStatus');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span>';
+  const btn = document.getElementById('movieCustomPosterUploadBtn');
+  const status = document.getElementById('movieCustomPosterStatus');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
   status.textContent = 'Uploading...';
-
   try {
-    const ext = file.name.split('.').pop().toLowerCase();
-    const fileName = 'posters/' + Date.now() + '_' + (selectedMovie?.tmdbId || 'custom') + '.' + ext;
-    const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
-      headers: { 'X-Session-Token': sessionToken }
-    });
-    const urlData = await urlRes.json();
-    if (!urlRes.ok) throw new Error(urlData.error || 'Failed to get upload URL');
-
-    await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', urlData.uploadUrl);
-      xhr.setRequestHeader('Authorization', urlData.authorizationToken);
-      xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
-      xhr.setRequestHeader('Content-Type', file.type || 'image/jpeg');
-      xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
-      xhr.onload = () => xhr.status < 300 ? resolve() : reject(new Error('Upload failed'));
-      xhr.onerror = () => reject(new Error('Network error'));
-      xhr.send(file);
-    });
-
-    // Store as worker CDN URL for fast delivery
-    const workerFileName = fileName.replace('posters/', '');
-    customPosterUrl = `${ADMIN_API}/poster/${workerFileName}`;
+    customPosterUrl = await _uploadCustomPosterFile(file, selectedMovie?.tmdbId, 'movie');
     if (selectedMovie) selectedMovie.poster = customPosterUrl;
-
-    status.textContent = '✅ Poster uploaded!';
+    status.textContent = '✅ Uploaded!';
     btn.innerHTML = '✅ Done';
-    toast('Custom poster uploaded!', 'success');
+    toast('Custom movie poster uploaded!', 'success');
   } catch(e) {
     status.textContent = '❌ ' + e.message;
-    btn.disabled = false;
-    btn.innerHTML = '⬆️ Upload Poster';
+    btn.disabled = false; btn.innerHTML = '⬆️ Upload';
   }
 }
+
+async function uploadCustomPoster_series() {
+  const file = document.getElementById('seriesCustomPosterFile').files[0];
+  if (!file) return;
+  const btn = document.getElementById('seriesCustomPosterUploadBtn');
+  const status = document.getElementById('seriesCustomPosterStatus');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  status.textContent = 'Uploading...';
+  try {
+    seriesCustomPosterUrl = await _uploadCustomPosterFile(file, selectedSeries?.tmdbId, 'series');
+    if (selectedSeries) selectedSeries.poster = seriesCustomPosterUrl;
+    status.textContent = '✅ Uploaded!';
+    btn.innerHTML = '✅ Done';
+    toast('Custom series poster uploaded!', 'success');
+  } catch(e) {
+    status.textContent = '❌ ' + e.message;
+    btn.disabled = false; btn.innerHTML = '⬆️ Upload';
+  }
+}
+
+
 
 async function addMovie() {
   if (!uploadedFileName) return toast('Upload the video first (Step 1)', 'error');
