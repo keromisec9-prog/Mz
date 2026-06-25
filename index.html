@@ -217,13 +217,29 @@ input[type=text]::placeholder { color: var(--gray2); }
     <div class="tab-content" id="tab-addseries">
       <div class="step">
         <div class="step-header"><div class="step-num">1</div><div class="step-title">Find Series on TMDB</div></div>
-        <div class="search-row">
-          <input type="text" id="seriesTmdbQuery" placeholder="Search TV show title..." onkeydown="if(event.key==='Enter')searchSeriesTMDB()" style="margin-bottom:0;"/>
-          <button class="btn btn-gold" onclick="searchSeriesTMDB()">Search</button>
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
+          <button class="btn" id="seriesTmdbModeBtn" onclick="setSeriesMode('tmdb')" style="font-size:0.75rem;flex:1;background:var(--gold);color:#000;">🔍 TMDB Search</button>
+          <button class="btn" id="seriesManualModeBtn" onclick="setSeriesMode('manual')" style="font-size:0.75rem;flex:1;">✏️ Manual Entry</button>
         </div>
-        <div class="poster-grid" id="seriesPosterGrid"></div>
-        <div id="seriesPreview"></div>
-        <div class="status" id="seriesTmdbStatus"></div>
+        <!-- TMDB Search -->
+        <div id="seriesTmdbSection">
+          <div class="search-row">
+            <input type="text" id="seriesTmdbQuery" placeholder="Search TV show title..." onkeydown="if(event.key==='Enter')searchSeriesTMDB()" style="margin-bottom:0;"/>
+            <button class="btn btn-gold" onclick="searchSeriesTMDB()">Search</button>
+          </div>
+          <div class="poster-grid" id="seriesPosterGrid"></div>
+          <div id="seriesPreview"></div>
+          <div class="status" id="seriesTmdbStatus"></div>
+        </div>
+        <!-- Manual Entry -->
+        <div id="seriesManualSection" style="display:none;">
+          <input type="text" id="manualSeriesTitle" class="input" placeholder="Series title *" style="margin-bottom:0.5rem;"/>
+          <input type="text" id="manualSeriesYear" class="input" placeholder="Year (e.g. 2024)" style="margin-bottom:0.5rem;"/>
+          <textarea id="manualSeriesOverview" class="input" placeholder="Description (optional)" rows="3" style="margin-bottom:0.5rem;resize:vertical;"></textarea>
+          <input type="number" id="manualSeriesSeasons" class="input" placeholder="Number of seasons (default 1)" style="margin-bottom:0.5rem;" min="1"/>
+          <button class="btn btn-gold" onclick="confirmManualSeries()" style="width:100%;">✅ Use This Info</button>
+          <div class="status" id="manualSeriesStatus"></div>
+        </div>
         <!-- Custom poster — advanced option, collapsed by default -->
         <details style="margin-top:0.6rem;">
           <summary style="font-size:0.75rem;color:#666;cursor:pointer;user-select:none;">⚙️ Custom Poster (optional)</summary>
@@ -907,6 +923,36 @@ async function selectSeriesResult(idx, el) {
         </div>
       </div>`;
   } catch { toast('Could not load series details', 'error'); }
+}
+
+let _seriesMode = 'tmdb';
+
+function setSeriesMode(mode) {
+  _seriesMode = mode;
+  document.getElementById('seriesTmdbSection').style.display = mode === 'tmdb' ? 'block' : 'none';
+  document.getElementById('seriesManualSection').style.display = mode === 'manual' ? 'block' : 'none';
+  document.getElementById('seriesTmdbModeBtn').style.background = mode === 'tmdb' ? 'var(--gold)' : '';
+  document.getElementById('seriesTmdbModeBtn').style.color = mode === 'tmdb' ? '#000' : '';
+  document.getElementById('seriesManualModeBtn').style.background = mode === 'manual' ? 'var(--gold)' : '';
+  document.getElementById('seriesManualModeBtn').style.color = mode === 'manual' ? '#000' : '';
+}
+
+function confirmManualSeries() {
+  const title = document.getElementById('manualSeriesTitle').value.trim();
+  if (!title) { showStatus('manualSeriesStatus', '❌ Title is required', 'error'); return; }
+  selectedSeries = {
+    tmdbId: null, // worker will generate local_ ID
+    title,
+    poster: seriesCustomPosterUrl || '',
+    backdrop: seriesCustomPosterUrl || '',
+    year: document.getElementById('manualSeriesYear').value.trim() || '',
+    rating: 0,
+    overview: document.getElementById('manualSeriesOverview').value.trim() || '',
+    genreIds: [],
+    seasons: parseInt(document.getElementById('manualSeriesSeasons').value) || 1,
+    episodes: 0,
+  };
+  showStatus('manualSeriesStatus', `✅ "${title}" ready to add. Select VJ below.`, 'success');
 }
 
 async function addSeries() {
