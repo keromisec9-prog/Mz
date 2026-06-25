@@ -498,7 +498,7 @@ async function uploadVideo() {
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', urlData.uploadUrl);
-        xhr.setRequestHeader('Authorization', urlData.authorizationToken);
+        xhr.setRequestHeader('Authorization', urlData.authToken || urlData.authorizationToken);
         xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
         xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
         xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
@@ -718,7 +718,7 @@ async function _uploadCustomPosterFile(file, tmdbId, prefix) {
   await new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', urlData.uploadUrl);
-    xhr.setRequestHeader('Authorization', urlData.authorizationToken);
+    xhr.setRequestHeader('Authorization', urlData.authToken || urlData.authorizationToken);
     xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
     xhr.setRequestHeader('Content-Type', file.type || 'image/jpeg');
     xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
