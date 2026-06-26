@@ -1046,7 +1046,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!file) return;
     document.getElementById('epSelFileName').textContent = file.name;
     const slug = file.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/gi, '_').toLowerCase();
-    const sid = document.getElementById('episodeSeriesId').value;
+    const sidRaw = document.getElementById('episodeSeriesId').value;
+    const sid = sidRaw.replace(/[^a-zA-Z0-9_]+/g, '_');
     const sn = document.getElementById('episodeSeason').value || '1';
     const en = document.getElementById('episodeNum').value || '1';
     if (!document.getElementById('episodeFileName').value)
