@@ -573,7 +573,6 @@ async function uploadVideo() {
               xhr.open('POST', partUrl);
               xhr.setRequestHeader('Authorization', partAuth);
               xhr.setRequestHeader('X-Bz-Part-Number', partNumber);
-              xhr.setRequestHeader('Content-Length', chunk.size);
               xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
               xhr.upload.onprogress = e => {
                 if (e.lengthComputable) updateProgress(uploadedBytes + e.loaded);
@@ -1147,7 +1146,6 @@ async function uploadAndAddEpisode() {
               xhr.open('POST', partUrl);
               xhr.setRequestHeader('Authorization', partAuth);
               xhr.setRequestHeader('X-Bz-Part-Number', partNumber);
-              xhr.setRequestHeader('Content-Length', chunk.size);
               xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
               xhr.upload.onprogress = e => { if (e.lengthComputable) updateEpProgress(uploadedBytes + e.loaded); };
               xhr.onload = () => {
