@@ -1092,6 +1092,7 @@ async function uploadAndAddEpisode() {
       });
       const b2 = await urlRes.json();
       if (!b2.uploadUrl) throw new Error('Could not get upload URL from server');
+      console.log('[EP-UPLOAD] uploadUrl:', b2.uploadUrl, 'authToken len:', (b2.authorizationToken||'').length, 'fileName:', fileName);
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', b2.uploadUrl);
@@ -1100,8 +1101,15 @@ async function uploadAndAddEpisode() {
         xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
         xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
         xhr.upload.onprogress = e => { if (e.lengthComputable) updateEpProgress(e.loaded); };
-        xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`));
-        xhr.onerror = () => reject(new Error('Network error during upload'));
+        xhr.onload = () => {
+          console.log('[EP-UPLOAD] onload status:', xhr.status, 'responseText:', xhr.responseText);
+          xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText || 'no response body'}`));
+        };
+        xhr.onerror = () => {
+          console.log('[EP-UPLOAD] onerror fired. readyState:', xhr.readyState, 'status:', xhr.status, 'statusText:', xhr.statusText, 'responseText:', xhr.responseText);
+          reject(new Error(`Network error during upload (readyState=${xhr.readyState}, status=${xhr.status})`));
+        };
+        xhr.ontimeout = () => reject(new Error('Upload timed out'));
         xhr.send(file);
       });
     } else {
