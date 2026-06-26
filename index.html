@@ -742,7 +742,7 @@ async function _uploadCustomPosterFile(file, tmdbId, prefix) {
     xhr.onerror = () => reject(new Error('Network error'));
     xhr.send(file);
   });
-  return `${ADMIN_API}/poster/` + fileName.replace('posters/', '');
+  return `https://f003.backblazeb2.com/file/picha-plus-videos/` + fileName;
 }
 
 async function uploadCustomPoster_movie() {
