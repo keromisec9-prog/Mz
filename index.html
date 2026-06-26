@@ -995,7 +995,7 @@ async function loadSeries() {
               <div class="card-title">${esc(s.title)}</div>
               <div class="card-meta">${s.year||'?'} · ⭐${s.rating||'?'} · ${s.seasons||1} season(s) · ${Object.keys(s.episodes||{}).length} episodes added</div>
             </div>
-            <button class="btn btn-red btn-sm" onclick="deleteSeries(${s.tmdbId},'${esc(s.title)}')">🗑</button>
+            <button class="btn btn-red btn-sm" onclick="deleteSeries('${s._key || s.tmdbId}','${esc(s.title)}')">🗑</button>
           </div>
           <button class="btn btn-outline btn-sm btn-full" onclick="openAddEpisode('${s._key}','${esc(s.title)}')">➕ Add Episode</button>
         </div>`).join('')}`;
