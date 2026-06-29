@@ -164,7 +164,12 @@ input[type=text]::placeholder { color: var(--gray2); }
         <button class="btn btn-gold btn-full" style="margin-top:0.8rem;" id="uploadBtn" onclick="uploadVideo()">Upload to Backblaze</button>
       </div>
       <div class="step">
-        <div class="step-header"><div class="step-num" id="s2n">2</div><div class="step-title">Find on TMDB</div></div>
+        <div class="step-header"><div class="step-num" id="s2n">2</div><div class="step-title">Find Movie Info</div></div>
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
+          <button class="btn" id="movieTmdbModeBtn" onclick="setMovieMode('tmdb')" style="font-size:0.75rem;flex:1;background:var(--gold);color:#000;">🔍 TMDB Search</button>
+          <button class="btn" id="movieManualModeBtn" onclick="setMovieMode('manual')" style="font-size:0.75rem;flex:1;">✏️ Manual Entry</button>
+        </div>
+        <div id="movieTmdbSection">
         <div class="search-row">
           <input type="text" id="tmdbQuery" placeholder="Search movie title..." onkeydown="if(event.key==='Enter')searchTMDB()" style="margin-bottom:0;"/>
           <button class="btn btn-gold" id="searchBtn" onclick="searchTMDB()">Search</button>
@@ -185,6 +190,15 @@ input[type=text]::placeholder { color: var(--gray2); }
             <img id="movieCustomPosterPreview" src="" style="display:none;width:70px;margin-top:0.4rem;border-radius:4px;"/>
           </div>
         </details>
+        </div>
+        <!-- Manual Entry -->
+        <div id="movieManualSection" style="display:none;">
+          <input type="text" id="manualMovieTitle" class="input" placeholder="Movie title *" style="margin-bottom:0.5rem;"/>
+          <input type="text" id="manualMovieYear" class="input" placeholder="Year (e.g. 2024)" style="margin-bottom:0.5rem;"/>
+          <textarea id="manualMovieOverview" class="input" placeholder="Description (optional)" rows="3" style="margin-bottom:0.5rem;resize:vertical;"></textarea>
+          <button class="btn btn-gold" onclick="confirmManualMovie()" style="width:100%;">✅ Use This Info</button>
+          <div class="status" id="manualMovieStatus"></div>
+        </div>
       </div>
       <div class="step">
         <div class="step-header"><div class="step-num" id="s3n">3</div><div class="step-title">Select VJ & Add</div></div>
@@ -927,6 +941,31 @@ async function selectSeriesResult(idx, el) {
 }
 
 let _seriesMode = 'tmdb';
+
+function setMovieMode(mode) {
+  document.getElementById('movieTmdbSection').style.display = mode === 'tmdb' ? 'block' : 'none';
+  document.getElementById('movieManualSection').style.display = mode === 'manual' ? 'block' : 'none';
+  document.getElementById('movieTmdbModeBtn').style.background = mode === 'tmdb' ? 'var(--gold)' : '';
+  document.getElementById('movieTmdbModeBtn').style.color = mode === 'tmdb' ? '#000' : '';
+  document.getElementById('movieManualModeBtn').style.background = mode === 'manual' ? 'var(--gold)' : '';
+  document.getElementById('movieManualModeBtn').style.color = mode === 'manual' ? '#000' : '';
+  if (mode === 'tmdb') { selectedMovie = null; document.getElementById('moviePreview').innerHTML = ''; }
+}
+
+function confirmManualMovie() {
+  const title = document.getElementById('manualMovieTitle').value.trim();
+  selectedMovie = {
+    tmdbId: null,
+    title,
+    poster: movieCustomPosterUrl || '',
+    backdrop: movieCustomPosterUrl || '',
+    year: document.getElementById('manualMovieYear').value.trim() || '',
+    rating: 0,
+    overview: document.getElementById('manualMovieOverview').value.trim() || '',
+    genreIds: [],
+  };
+  showStatus('manualMovieStatus', `✅ "${title}" ready to add. Select VJ below.`, 'success');
+}
 
 function setSeriesMode(mode) {
   _seriesMode = mode;
