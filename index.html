@@ -803,6 +803,7 @@ async function uploadCustomPoster_series() {
 async function addMovie() {
   if (!uploadedFileName) return toast('Upload the video first (Step 1)', 'error');
   if (!selectedMovie) return toast('Select a movie from TMDB (Step 2)', 'error');
+  if (!selectedMovie.poster) return toast('A poster is required — choose a TMDB poster or upload a custom one', 'error');
   const vj = document.getElementById('vjCustom').value.trim() || selectedVJ;
   const btn = document.getElementById('addBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Adding...';
@@ -849,33 +850,55 @@ function resetForm() {
 }
 
 // ── MOVIES ────────────────────────────────────────────────────────────────────
+let _allMoviesCache = [];
+
 async function loadMovies() {
   document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
   try {
     const res = await fetch(`${ADMIN_API}/movies`, { headers: { 'X-Session-Token': sessionToken } });
     const data = await res.json();
     if (!data.movies?.length) { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No movies yet.</div>'; return; }
-    document.getElementById('moviesList').innerHTML = `
-      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${data.movies.length} movies in catalog</div>
-      ${data.movies.map(m=>`
-        <div class="card">
-          <img src="${m.poster}" style="width:40px;height:60px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.display='none'"/>
-          <div class="card-info">
-            <div class="card-title">${esc(m.title)}</div>
-            <div class="card-meta">${m.year} · ⭐${m.rating} · ${m.vj||''}</div>
-          </div>
-          <button class="btn btn-red btn-sm" onclick="deleteMovie(${m.tmdbId},'${esc(m.title)}')">🗑</button>
-        </div>`).join('')}`;
+    _allMoviesCache = data.movies.slice().sort((a,b) => (b.addedAt||0) - (a.addedAt||0));
+    renderMoviesList(_allMoviesCache);
   } catch { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
 }
 
-async function deleteMovie(tmdbId, title) {
+function renderMoviesList(movies) {
+  document.getElementById('moviesList').innerHTML = `
+    <input type="text" id="movieSearchInput" class="input" placeholder="🔍 Search movies..." oninput="filterMoviesList(this.value)" style="margin-bottom:0.8rem;"/>
+    <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${movies.length} movie(s)</div>
+    <div id="moviesListItems">${movies.map(m=>`
+      <div class="card">
+        <img src="${m.poster}" style="width:40px;height:60px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.display='none'"/>
+        <div class="card-info">
+          <div class="card-title">${esc(m.title)}</div>
+          <div class="card-meta">${m.year} · ⭐${m.rating} · ${m.vj||''}</div>
+        </div>
+        <button class="btn btn-red btn-sm" onclick="deleteMovie('${esc(m._key)}','${esc(m.title)}')">🗑</button>
+      </div>`).join('')}</div>`;
+}
+
+function filterMoviesList(query) {
+  const q = query.trim().toLowerCase();
+  const filtered = q ? _allMoviesCache.filter(m => m.title.toLowerCase().includes(q)) : _allMoviesCache;
+  document.getElementById('moviesListItems').innerHTML = filtered.map(m=>`
+    <div class="card">
+      <img src="${m.poster}" style="width:40px;height:60px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.display='none'"/>
+      <div class="card-info">
+        <div class="card-title">${esc(m.title)}</div>
+        <div class="card-meta">${m.year} · ⭐${m.rating} · ${m.vj||''}</div>
+      </div>
+      <button class="btn btn-red btn-sm" onclick="deleteMovie('${esc(m._key)}','${esc(m.title)}')">🗑</button>
+    </div>`).join('');
+}
+
+async function deleteMovie(movieKey, title) {
   if (!confirm(`Delete "${title}"?`)) return;
   try {
     const res = await fetch(`${ADMIN_API}/delete-movie`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-      body: JSON.stringify({ tmdbId }),
+      body: JSON.stringify({ movieKey }),
     });
     const data = await res.json();
     if (data.success) { toast(`Deleted "${title}"`, 'success'); loadMovies(); }
