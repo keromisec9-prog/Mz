@@ -177,6 +177,7 @@ input[type=text]::placeholder { color: var(--gray2); }
         <div class="poster-grid" id="posterGrid"></div>
         <div id="moviePreview"></div>
         <div class="status" id="tmdbStatus"></div>
+        </div>
         <details style="margin-top:0.6rem;">
           <summary style="font-size:0.75rem;color:#666;cursor:pointer;user-select:none;">⚙️ Custom Poster (optional)</summary>
           <div style="margin-top:0.5rem;">
@@ -190,7 +191,6 @@ input[type=text]::placeholder { color: var(--gray2); }
             <img id="movieCustomPosterPreview" src="" style="display:none;width:70px;margin-top:0.4rem;border-radius:4px;"/>
           </div>
         </details>
-        </div>
         <!-- Manual Entry -->
         <div id="movieManualSection" style="display:none;">
           <input type="text" id="manualMovieTitle" class="input" placeholder="Movie title *" style="margin-bottom:0.5rem;"/>
@@ -954,11 +954,12 @@ function setMovieMode(mode) {
 
 function confirmManualMovie() {
   const title = document.getElementById('manualMovieTitle').value.trim();
+  if (!title) { showStatus('manualMovieStatus', '❌ Title is required', 'error'); return; }
   selectedMovie = {
     tmdbId: null,
     title,
-    poster: movieCustomPosterUrl || '',
-    backdrop: movieCustomPosterUrl || '',
+    poster: customPosterUrl || '',
+    backdrop: customPosterUrl || '',
     year: document.getElementById('manualMovieYear').value.trim() || '',
     rating: 0,
     overview: document.getElementById('manualMovieOverview').value.trim() || '',
