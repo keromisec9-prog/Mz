@@ -217,7 +217,7 @@ input[type=text]::placeholder { color: var(--gray2); }
         <input type="text" id="vjCustom" placeholder="Type a different VJ name..." oninput="if(this.value.trim()){document.querySelectorAll('#tab-add .vj-pill').forEach(p=>p.classList.remove('active'));selectedVJ=this.value.trim();}"/>
         <label style="margin-top:0.8rem;">Part (optional)</label>
         <input type="text" id="moviePart" placeholder="e.g. Part 1, Part 2, Director's Cut..." style="margin-bottom:0.5rem;"/>
-        <label style="margin-top:0.8rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="isUgandan" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🇺🇬 Ugandan Cinema</span></label>
+        <label style="margin-top:0.8rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="isUgandan" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🌍 African Cinema</span></label>
         <button class="btn btn-gold btn-full btn-lg" id="addBtn" onclick="addMovie()">✅ Add Movie to Picha+</button>
         <div class="status" id="addStatus"></div>
       </div>
@@ -286,7 +286,7 @@ input[type=text]::placeholder { color: var(--gray2); }
         <label>Custom VJ (optional)</label>
         <input type="text" id="seriesVjCustom" placeholder="Type a different VJ name..."
           oninput="if(this.value.trim()){document.querySelectorAll('#tab-addseries .vj-pill').forEach(p=>p.classList.remove('active'));selectedSeriesVJ=this.value.trim();}"/>
-        <label style="margin-top:0.8rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="isUgandanSeries" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🇺🇬 Ugandan Cinema</span></label>
+        <label style="margin-top:0.8rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="isUgandanSeries" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🌍 African Cinema</span></label>
         <button class="btn btn-gold btn-full btn-lg" id="addSeriesBtn" onclick="addSeries()">📺 Add Series to Picha+</button>
         <div class="status" id="addSeriesStatus"></div>
       </div>
