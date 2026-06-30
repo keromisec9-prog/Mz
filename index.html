@@ -204,17 +204,10 @@ input[type=text]::placeholder { color: var(--gray2); }
         <div class="step-header"><div class="step-num" id="s3n">3</div><div class="step-title">Select VJ & Add</div></div>
         <label>VJ Name</label>
         <div class="vj-row">
-          <div class="vj-pill active" onclick="selectVJ('VJ Junior',this)">VJ Junior</div>
-          <div class="vj-pill" onclick="selectVJ('VJ Ice P',this)">VJ Ice P</div>
-          <div class="vj-pill" onclick="selectVJ('VJ Uncle T',this)">VJ Uncle T</div>
-          <div class="vj-pill" onclick="selectVJ('VJ Emmy',this)">VJ Emmy</div>
-          <div class="vj-pill" onclick="selectVJ('VJ Kevin',this)">VJ Kevin</div>
-          <div class="vj-pill" onclick="selectVJ('VJ Shield',this)">VJ Shield</div>
-          <div class="vj-pill" onclick="selectVJ('VJ Mark',this)">VJ Mark</div>
-          <div class="vj-pill" onclick="selectVJ('VJ CB',this)">VJ CB</div>
+          <div id="movieVjPills" style="display:flex;flex-wrap:wrap;gap:0.5rem;"></div>
         </div>
         <label>Custom VJ (optional)</label>
-        <input type="text" id="vjCustom" placeholder="Type a different VJ name..." oninput="if(this.value.trim()){document.querySelectorAll('#tab-add .vj-pill').forEach(p=>p.classList.remove('active'));selectedVJ=this.value.trim();}"/>
+        <input type="text" id="vjCustom" placeholder="Type a different VJ name..." oninput="if(this.value.trim()){document.querySelectorAll('#tab-add .vj-pill').forEach(p=>p.classList.remove('active'));selectedVJ=this.value.trim();}" onblur="registerNewVJ(this.value)"/>
         <label style="margin-top:0.8rem;">Part (optional)</label>
         <input type="text" id="moviePart" placeholder="e.g. Part 1, Part 2, Director's Cut..." style="margin-bottom:0.5rem;"/>
         <label style="margin-top:0.8rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="isUgandan" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🌍 African Cinema</span></label>
@@ -274,18 +267,11 @@ input[type=text]::placeholder { color: var(--gray2); }
         <div class="step-header"><div class="step-num">2</div><div class="step-title">Select VJ & Add</div></div>
         <label>VJ Name</label>
         <div class="vj-row">
-          <div class="vj-pill active" onclick="selectSeriesVJ('VJ Junior',this)">VJ Junior</div>
-          <div class="vj-pill" onclick="selectSeriesVJ('VJ Ice P',this)">VJ Ice P</div>
-          <div class="vj-pill" onclick="selectSeriesVJ('VJ Uncle T',this)">VJ Uncle T</div>
-          <div class="vj-pill" onclick="selectSeriesVJ('VJ Emmy',this)">VJ Emmy</div>
-          <div class="vj-pill" onclick="selectSeriesVJ('VJ Kevin',this)">VJ Kevin</div>
-          <div class="vj-pill" onclick="selectSeriesVJ('VJ Shield',this)">VJ Shield</div>
-          <div class="vj-pill" onclick="selectSeriesVJ('VJ Mark',this)">VJ Mark</div>
-          <div class="vj-pill" onclick="selectSeriesVJ('VJ CB',this)">VJ CB</div>
+          <div id="seriesVjPills" style="display:flex;flex-wrap:wrap;gap:0.5rem;"></div>
         </div>
         <label>Custom VJ (optional)</label>
         <input type="text" id="seriesVjCustom" placeholder="Type a different VJ name..."
-          oninput="if(this.value.trim()){document.querySelectorAll('#tab-addseries .vj-pill').forEach(p=>p.classList.remove('active'));selectedSeriesVJ=this.value.trim();}"/>
+          oninput="if(this.value.trim()){document.querySelectorAll('#tab-addseries .vj-pill').forEach(p=>p.classList.remove('active'));selectedSeriesVJ=this.value.trim();}" onblur="registerNewVJ(this.value)"/>
         <label style="margin-top:0.8rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="isUgandanSeries" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🌍 African Cinema</span></label>
         <button class="btn btn-gold btn-full btn-lg" id="addSeriesBtn" onclick="addSeries()">📺 Add Series to Picha+</button>
         <div class="status" id="addSeriesStatus"></div>
@@ -427,6 +413,7 @@ async function checkAdmin() {
       document.getElementById('navUser').textContent = data.name || data.email;
       document.getElementById('signOutBtn').style.display = 'block';
       if (isSuperAdmin) document.getElementById('adminsTab').style.display = 'block';
+      loadVJs();
     } else if (res.status === 401 || res.status === 403) {
       // Session expired or invalid — clear and show sign in
       localStorage.removeItem('pichaplus_admin_session');
@@ -714,9 +701,53 @@ function selectSeriesVJ(vj, el) {
 
 function selectVJ(vj, el) {
   selectedVJ = vj;
-  document.querySelectorAll('.vj-pill').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('#movieVjPills .vj-pill').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('vjCustom').value = '';
+}
+
+let _allVJs = [];
+
+async function loadVJs() {
+  try {
+    const res = await fetch(`${ADMIN_API}/vjs`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    _allVJs = data.vjs?.length ? data.vjs : ['VJ Junior'];
+    renderVJPills();
+  } catch {
+    _allVJs = ['VJ Junior'];
+    renderVJPills();
+  }
+}
+
+function renderVJPills() {
+  const movieContainer = document.getElementById('movieVjPills');
+  const seriesContainer = document.getElementById('seriesVjPills');
+  if (movieContainer) {
+    movieContainer.innerHTML = _allVJs.map((vj, i) =>
+      `<div class="vj-pill${vj === selectedVJ ? ' active' : ''}" onclick="selectVJ('${esc(vj)}',this)">${esc(vj)}</div>`
+    ).join('');
+  }
+  if (seriesContainer) {
+    seriesContainer.innerHTML = _allVJs.map((vj, i) =>
+      `<div class="vj-pill${vj === selectedSeriesVJ ? ' active' : ''}" onclick="selectSeriesVJ('${esc(vj)}',this)">${esc(vj)}</div>`
+    ).join('');
+  }
+}
+
+async function registerNewVJ(name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed || _allVJs.includes(trimmed)) return;
+  try {
+    await fetch(`${ADMIN_API}/vj-add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    _allVJs.push(trimmed);
+    _allVJs.sort();
+    renderVJPills();
+  } catch {}
 }
 
 let customPosterUrl = null;
