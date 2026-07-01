@@ -324,6 +324,18 @@ input[type=text]::placeholder { color: var(--gray2); }
   <div class="modal">
     <h3>Grant Subscription</h3>
     <p style="font-size:0.82rem;color:var(--gray);margin-bottom:1rem;" id="grantUserName"></p>
+    <label>Plan</label>
+    <select id="grantPlan" class="input" style="margin-bottom:0.8rem;" onchange="onGrantPlanChange()">
+      <option value="daily">Daily — UGX 1,000 (1 day)</option>
+      <option value="dailyplus">Daily+ 🌍 — UGX 2,000 (1 day)</option>
+      <option value="weekly">Weekly — UGX 5,000 (7 days)</option>
+      <option value="weeklyplus">Weekly+ 🌍 — UGX 8,000 (7 days)</option>
+      <option value="monthly" selected>Monthly — UGX 15,000 (30 days)</option>
+      <option value="monthlyplus">Monthly+ 🌍 — UGX 20,000 (30 days)</option>
+      <option value="quarterly">Quarterly — UGX 60,000 (90 days)</option>
+      <option value="yearly">Yearly — UGX 120,000 (365 days)</option>
+      <option value="premium">Premium (Lifetime)</option>
+    </select>
     <label>Number of Days</label>
     <input type="text" id="grantDays" placeholder="e.g. 30"/>
     <div class="modal-actions">
@@ -1349,17 +1361,25 @@ function openGrant(userId, name) {
 }
 function closeGrant() { document.getElementById('grantModal').classList.remove('active'); grantUserId = null; }
 
+const PLAN_DAYS = { daily:1, dailyplus:1, weekly:7, weeklyplus:7, monthly:30, monthlyplus:30, quarterly:90, yearly:365, premium:36500 };
+
+function onGrantPlanChange() {
+  const plan = document.getElementById('grantPlan').value;
+  if (PLAN_DAYS[plan]) document.getElementById('grantDays').value = PLAN_DAYS[plan];
+}
+
 async function confirmGrant() {
+  const plan = document.getElementById('grantPlan').value;
   const days = parseInt(document.getElementById('grantDays').value);
   if (!days||days<1) return toast('Enter valid number of days', 'error');
   try {
     const res = await fetch(`${ADMIN_API}/grant-sub`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-      body: JSON.stringify({ userId: grantUserId, days }),
+      body: JSON.stringify({ userId: grantUserId, days, plan }),
     });
     const data = await res.json();
-    if (data.success) { toast(`✅ ${data.name} granted ${days} days!`, 'success'); closeGrant(); loadUsers(); }
+    if (data.success) { toast(`✅ ${data.name} granted ${plan} for ${days} days!`, 'success'); closeGrant(); loadUsers(); }
     else throw new Error(data.error);
   } catch(e) { toast('Failed: '+e.message, 'error'); }
 }
