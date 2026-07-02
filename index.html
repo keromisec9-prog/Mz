@@ -349,7 +349,10 @@ input[type=text]::placeholder { color: var(--gray2); }
 <!-- ADD EPISODE MODAL -->
 <div class="modal-overlay" id="episodeModal" style="display:none;">
   <div class="modal" style="max-width:420px;width:92%;">
-    <h3>Add Episode</h3>
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+      <button class="btn" id="epModeNew" onclick="setEpMode('new')" style="flex:1;font-size:0.75rem;background:var(--gold);color:#000;">➕ New Episode</button>
+      <button class="btn" id="epModePart" onclick="setEpMode('part')" style="flex:1;font-size:0.75rem;">🎬 Add Part to Episode</button>
+    </div>
     <p style="font-size:0.82rem;color:var(--gray);margin-bottom:1rem;" id="episodeSeriesTitle"></p>
     <input type="hidden" id="episodeSeriesId"/>
     <label>Season <span style="color:var(--gray);font-size:0.75rem;">(optional)</span></label>
@@ -371,9 +374,28 @@ input[type=text]::placeholder { color: var(--gray2); }
       <div class="progress-label" id="epProgressLabel">0%</div>
     </div>
     <div class="status" id="episodeAddStatus" style="display:none;"></div>
+    <!-- Add Part to Episode section -->
+    <div id="epPartSection" style="display:none;">
+      <label>Episode Key (e.g. s1e2)</label>
+      <input type="text" id="epPartKey" placeholder="s1e1, s1e2..." style="margin-bottom:0.5rem;"/>
+      <label>Part Label (optional)</label>
+      <input type="text" id="epPartLabel" placeholder="Part 2, Part 3..." style="margin-bottom:0.5rem;"/>
+      <label>Video File</label>
+      <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('epPartFileInput').click()">Browse</button>
+        <span id="epPartSelFileName" style="font-size:0.8rem;color:var(--gray);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      </div>
+      <input type="file" id="epPartFileInput" accept="video/*" style="display:none;" onchange="document.getElementById('epPartSelFileName').textContent=this.files[0]?.name||''"/>
+      <div class="progress-wrap" id="epPartProgressWrap" style="display:none;">
+        <div class="progress-track"><div class="progress-fill" id="epPartProgressFill"></div></div>
+        <div class="progress-label" id="epPartProgressLabel">0%</div>
+      </div>
+      <div class="status" id="epPartStatus" style="display:none;"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-outline btn-full" onclick="closeEpisodeModal()">Cancel</button>
       <button class="btn btn-gold btn-full" id="episodeUploadBtn" onclick="uploadAndAddEpisode()">⬆️ Upload & Add Episode</button>
+      <button class="btn btn-gold btn-full" id="epPartUploadBtn" onclick="uploadAndAddEpisodePart()" style="display:none;">⬆️ Upload & Add Part</button>
     </div>
   </div>
 </div>
@@ -1178,10 +1200,86 @@ async function deleteSeries(tmdbId, title) {
 }
 
 // ── ADD EPISODE MODAL ─────────────────────────────────────────────────────────
+function setEpMode(mode) {
+  const isNew = mode === 'new';
+  document.getElementById('epModeNew').style.background = isNew ? 'var(--gold)' : '';
+  document.getElementById('epModeNew').style.color = isNew ? '#000' : '';
+  document.getElementById('epModePart').style.background = !isNew ? 'var(--gold)' : '';
+  document.getElementById('epModePart').style.color = !isNew ? '#000' : '';
+  // Show/hide sections
+  ['episodeSeason','episodeNum','episodeTitle','episodeFileName','episodeFileInput','epSelFileName','epProgressWrap','episodeAddStatus'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.closest('label,div,input') && (el.style.display = isNew ? '' : 'none');
+  });
+  document.getElementById('epPartSection').style.display = isNew ? 'none' : 'block';
+  document.getElementById('episodeUploadBtn').style.display = isNew ? 'block' : 'none';
+  document.getElementById('epPartUploadBtn').style.display = isNew ? 'none' : 'block';
+}
+
+let _epPartXHR = null;
+
+async function uploadAndAddEpisodePart() {
+  const seriesKey = document.getElementById('episodeSeriesId').value;
+  const epKey = document.getElementById('epPartKey').value.trim();
+  const label = document.getElementById('epPartLabel').value.trim();
+  const file = document.getElementById('epPartFileInput').files[0];
+  if (!epKey) return showStatus('epPartStatus', '❌ Episode key required (e.g. s1e1)', 'error');
+  if (!file) return showStatus('epPartStatus', '❌ Select a video file', 'error');
+  const btn = document.getElementById('epPartUploadBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Uploading...';
+  showStatus('epPartStatus', '⬆️ Uploading...', 'info');
+  try {
+    // Get upload URL
+    const slug = file.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+    const fileName = `series/${seriesKey}/parts/${epKey}_${slug}_part.mp4`;
+    const urlRes = await fetch(`${ADMIN_API}/upload-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ fileName }),
+    });
+    const { uploadUrl, authToken } = await urlRes.json();
+    // Upload to B2
+    await new Promise((resolve, reject) => {
+      _epPartXHR = new XMLHttpRequest();
+      _epPartXHR.open('POST', uploadUrl);
+      _epPartXHR.setRequestHeader('Authorization', authToken);
+      _epPartXHR.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+      _epPartXHR.setRequestHeader('Content-Type', 'video/mp4');
+      _epPartXHR.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+      _epPartXHR.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded/e.total*100);
+          document.getElementById('epPartProgressWrap').style.display = 'block';
+          document.getElementById('epPartProgressFill').style.width = pct+'%';
+          document.getElementById('epPartProgressLabel').textContent = pct+'%';
+        }
+      };
+      _epPartXHR.onload = () => _epPartXHR.status < 400 ? resolve() : reject(new Error('Upload failed'));
+      _epPartXHR.onerror = () => reject(new Error('Upload error'));
+      _epPartXHR.send(file);
+    });
+    // Register part
+    const res = await fetch(`${ADMIN_API}/add-episode-part`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ seriesKey, epKey, fileName, label }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showStatus('epPartStatus', `✅ Part added! (${data.totalParts} parts total)`, 'success');
+      btn.innerHTML = '✅ Added!';
+    } else throw new Error(data.error);
+  } catch(e) {
+    showStatus('epPartStatus', '❌ '+e.message, 'error');
+    btn.disabled = false; btn.innerHTML = '⬆️ Upload & Add Part';
+  }
+}
+
 function openAddEpisode(seriesTmdbId, seriesTitle) {
   document.getElementById('episodeSeriesId').value = seriesTmdbId;
   document.getElementById('episodeSeriesTitle').textContent = seriesTitle;
   document.getElementById('episodeModal').style.display = 'flex';
+  setEpMode('new');
 }
 function closeEpisodeModal() {
   // Abort any in-progress upload
