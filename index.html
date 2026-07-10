@@ -106,6 +106,14 @@ input[type=text]::placeholder { color: var(--gray2); }
 .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
 .divider { height: 1px; background: var(--border); margin: 0.8rem 0; }
 </style>
+<style>
+#africanCinemaSlider::before {
+  content: ''; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px;
+  background: #fff; border-radius: 50%; transition: 0.2s;
+}
+#africanCinemaToggle:checked + #africanCinemaSlider { background: #e5b93c; }
+#africanCinemaToggle:checked + #africanCinemaSlider::before { transform: translateX(22px); }
+</style>
 </head>
 <body>
 
@@ -304,6 +312,16 @@ input[type=text]::placeholder { color: var(--gray2); }
 
     <!-- SITE -->
     <div class="tab-content" id="tab-site">
+      <div style="background:var(--card-bg,#1a1a1a);border:1px solid var(--border,#333);border-radius:8px;padding:1rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:0.9rem;font-weight:600;">🌍 African Cinema</div>
+          <div style="font-size:0.75rem;color:var(--gray);margin-top:0.15rem;">Show the African Cinema section and its Plus subscription plans on the live site</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:48px;height:26px;flex-shrink:0;">
+          <input type="checkbox" id="africanCinemaToggle" onchange="toggleAfricanCinema(this.checked)" style="opacity:0;width:0;height:0;">
+          <span id="africanCinemaSlider" style="position:absolute;cursor:pointer;inset:0;background:#333;border-radius:26px;transition:0.2s;"></span>
+        </label>
+      </div>
       <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">Live preview of Picha+</div>
       <div class="site-frame-wrap">
         <div class="site-frame-toolbar">
@@ -496,6 +514,29 @@ function switchTab(name) {
   if (name==='series') loadSeries();
   if (name==='users') loadUsers();
   if (name==='admins') loadAdmins();
+  if (name==='site') loadSiteSettings();
+}
+
+// ── SITE SETTINGS ─────────────────────────────────────────────────────────────
+async function loadSiteSettings() {
+  try {
+    const res = await fetch(`${ADMIN_API}/settings`, { headers: { 'X-Session-Token': sessionToken } });
+    const settings = await res.json();
+    const toggle = document.getElementById('africanCinemaToggle');
+    if (toggle) toggle.checked = settings.africanCinemaEnabled !== false;
+  } catch (e) {}
+}
+
+async function toggleAfricanCinema(enabled) {
+  try {
+    await fetch(`${ADMIN_API}/settings`, {
+      method: 'POST',
+      headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ africanCinemaEnabled: enabled })
+    });
+  } catch (e) {
+    alert('Failed to update setting. Please try again.');
+  }
 }
 
 // ── FILE SEARCH ───────────────────────────────────────────────────────────────
