@@ -1426,12 +1426,18 @@ function _epProcessQueue() {
 
 async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, file, ui }) {
   const setStatus = (text, color) => { ui.statusEl.textContent = text; if (color) ui.statusEl.style.color = color; };
-  const setPct = (pct) => { ui.fillEl.style.width = pct + '%'; ui.pctEl.textContent = pct + '%'; };
+  const totalMB = (file.size / 1024 / 1024).toFixed(1);
+  let partLabel = '';
+  const setPct = (loaded) => {
+    const pct = Math.round(loaded / file.size * 100);
+    ui.fillEl.style.width = pct + '%';
+    const loadedMB = (loaded / 1024 / 1024).toFixed(1);
+    ui.pctEl.textContent = `${pct}% — ${loadedMB} MB / ${totalMB} MB${partLabel}`;
+  };
   try {
     setStatus('Uploading...', 'var(--gold)');
     const CHUNK_SIZE = 20 * 1024 * 1024;
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-    const updateProgress = (loaded) => setPct(Math.round(loaded / file.size * 100));
 
     if (file.size <= CHUNK_SIZE) {
       const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
@@ -1446,7 +1452,7 @@ async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, f
         xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
         xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
         xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
-        xhr.upload.onprogress = e => { if (e.lengthComputable) updateProgress(e.loaded); };
+        xhr.upload.onprogress = e => { if (e.lengthComputable) setPct(e.loaded); };
         xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText || 'no response body'}`));
         xhr.onerror = () => reject(new Error(`Network error during upload (status=${xhr.status})`));
         xhr.send(file);
@@ -1464,6 +1470,7 @@ async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, f
       let uploadedBytes = 0;
       for (let i = 0; i < totalChunks; i++) {
         const partNumber = i + 1;
+        partLabel = ` • Part ${partNumber}/${totalChunks}`;
         const chunk = file.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, file.size));
         let partUrl, partAuth;
         for (let attempt = 0; attempt < 3; attempt++) {
@@ -1487,7 +1494,7 @@ async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, f
               xhr.setRequestHeader('Authorization', partAuth);
               xhr.setRequestHeader('X-Bz-Part-Number', partNumber);
               xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
-              xhr.upload.onprogress = e => { if (e.lengthComputable) updateProgress(uploadedBytes + e.loaded); };
+              xhr.upload.onprogress = e => { if (e.lengthComputable) setPct(uploadedBytes + e.loaded); };
               xhr.onload = () => {
                 if (xhr.status === 200) {
                   const resp = JSON.parse(xhr.responseText);
@@ -1502,7 +1509,7 @@ async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, f
         }
         partSha1Array.push(sha1);
         uploadedBytes += chunk.size;
-        updateProgress(uploadedBytes);
+        setPct(uploadedBytes);
       }
       const finishRes = await fetch(`${ADMIN_API}/b2-finish-large-file`, {
         method: 'POST',
@@ -1513,7 +1520,7 @@ async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, f
       if (!finishRes.ok) throw new Error(finishData.error || 'Failed to finish upload');
     }
 
-    setPct(100);
+    setPct(file.size);
     setStatus('Saving to catalog...', 'var(--gold)');
     const res = await fetch(`${ADMIN_API}/add-episode`, {
       method: 'POST',
