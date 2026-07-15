@@ -391,6 +391,7 @@ input[type=text]::placeholder { color: var(--gray2); }
       <div class="progress-track"><div class="progress-fill" id="epProgressFill"></div></div>
       <div class="progress-label" id="epProgressLabel">0%</div>
     </div>
+    <div id="epQueueList" style="margin-bottom:0.5rem;"></div>
     <div class="status" id="episodeAddStatus" style="display:none;"></div>
     <!-- Add Part to Episode section -->
     <div id="epPartSection" style="display:none;">
@@ -412,7 +413,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     </div>
     <div class="modal-actions">
       <button class="btn btn-outline btn-full" onclick="closeEpisodeModal()">Cancel</button>
-      <button class="btn btn-gold btn-full" id="episodeUploadBtn" onclick="uploadAndAddEpisode()">⬆️ Upload & Add Episode</button>
+      <button class="btn btn-gold btn-full" id="episodeUploadBtn" onclick="queueEpisodeUpload()">⬆️ Upload & Add Episode</button>
       <button class="btn btn-gold btn-full" id="epPartUploadBtn" onclick="uploadAndAddEpisodePart()" style="display:none;">⬆️ Upload & Add Part</button>
     </div>
   </div>
@@ -1355,36 +1356,82 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-let _epXHR = null; // track active upload so Cancel can abort it
+let _epXHR = null; // legacy ref kept so closeEpisodeModal() doesn't throw
 
-async function uploadAndAddEpisode() {
+// ── PARALLEL EPISODE UPLOAD QUEUE ──────────────────────────────────────────
+let _epActiveCount = 0;
+const _epMaxConcurrent = 3;
+const _epPendingQueue = [];
+
+function _epMakeRow(label) {
+  const list = document.getElementById('epQueueList');
+  const wrap = document.createElement('div');
+  wrap.className = 'progress-wrap';
+  wrap.style.display = 'block';
+  wrap.style.marginBottom = '0.75rem';
+  wrap.innerHTML = `
+    <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem;">
+      <span>${label}</span>
+      <span class="ep-row-status" style="color:var(--gray);">Queued</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill ep-row-fill" style="width:0%;"></div></div>
+    <div class="progress-label ep-row-pct">0%</div>
+  `;
+  list.appendChild(wrap);
+  return {
+    statusEl: wrap.querySelector('.ep-row-status'),
+    fillEl: wrap.querySelector('.ep-row-fill'),
+    pctEl: wrap.querySelector('.ep-row-pct')
+  };
+}
+
+function queueEpisodeUpload() {
   const seriesTmdbId = document.getElementById('episodeSeriesId').value;
   const season = parseInt(document.getElementById('episodeSeason').value) || 1;
   const epNum  = parseInt(document.getElementById('episodeNum').value);
   const epTitle = document.getElementById('episodeTitle').value.trim();
   const fileName = document.getElementById('episodeFileName').value.trim();
   const fileInput = document.getElementById('episodeFileInput');
+
   if (!epNum) return toast('Enter episode number', 'error');
   if (!fileName) return toast('Enter a file path', 'error');
   if (!fileInput.files[0]) return toast('Select a video file', 'error');
-  const btn = document.getElementById('episodeUploadBtn');
-  btn.disabled = true; btn.innerHTML = '⏳ Uploading...';
-  document.getElementById('epProgressWrap').style.display = 'block';
-  document.getElementById('epProgressFill').style.width = '0%';
-  document.getElementById('epProgressLabel').textContent = '0%';
-  document.getElementById('episodeAddStatus').style.display = 'none';
+
+  const file = fileInput.files[0];
+  const label = `S${season}E${epNum}${epTitle ? ' — ' + epTitle : ''}`;
+  const ui = _epMakeRow(label);
+
+  _epPendingQueue.push({ seriesTmdbId, season, epNum, epTitle, fileName, file, ui });
+
+  document.getElementById('episodeNum').value = '';
+  document.getElementById('episodeTitle').value = '';
+  document.getElementById('episodeFileName').value = '';
+  document.getElementById('epSelFileName').textContent = '';
+  fileInput.value = '';
+
+  toast(`Queued ${label}`, 'info');
+  _epProcessQueue();
+}
+
+function _epProcessQueue() {
+  while (_epActiveCount < _epMaxConcurrent && _epPendingQueue.length > 0) {
+    const item = _epPendingQueue.shift();
+    _epActiveCount++;
+    _epUploadItem(item).finally(() => {
+      _epActiveCount--;
+      _epProcessQueue();
+    });
+  }
+}
+
+async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, file, ui }) {
+  const setStatus = (text, color) => { ui.statusEl.textContent = text; if (color) ui.statusEl.style.color = color; };
+  const setPct = (pct) => { ui.fillEl.style.width = pct + '%'; ui.pctEl.textContent = pct + '%'; };
   try {
-    // Upload to B2 (multipart for large files)
-    const file = fileInput.files[0];
+    setStatus('Uploading...', 'var(--gold)');
     const CHUNK_SIZE = 20 * 1024 * 1024;
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-    const updateEpProgress = (loaded) => {
-      const pct = Math.round(loaded / file.size * 100);
-      document.getElementById('epProgressFill').style.width = pct + '%';
-      document.getElementById('epProgressLabel').textContent =
-        `${pct}% — ${(loaded/1024/1024).toFixed(1)} MB / ${(file.size/1024/1024).toFixed(1)} MB`;
-      btn.innerHTML = `⏳ ${pct}%`;
-    };
+    const updateProgress = (loaded) => setPct(Math.round(loaded / file.size * 100));
 
     if (file.size <= CHUNK_SIZE) {
       const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
@@ -1392,7 +1439,6 @@ async function uploadAndAddEpisode() {
       });
       const b2 = await urlRes.json();
       if (!b2.uploadUrl) throw new Error('Could not get upload URL from server');
-      console.log('[EP-UPLOAD] uploadUrl:', b2.uploadUrl, 'authToken len:', (b2.authorizationToken||'').length, 'fileName:', fileName);
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', b2.uploadUrl);
@@ -1400,16 +1446,9 @@ async function uploadAndAddEpisode() {
         xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
         xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
         xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
-        xhr.upload.onprogress = e => { if (e.lengthComputable) updateEpProgress(e.loaded); };
-        xhr.onload = () => {
-          console.log('[EP-UPLOAD] onload status:', xhr.status, 'responseText:', xhr.responseText);
-          xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText || 'no response body'}`));
-        };
-        xhr.onerror = () => {
-          console.log('[EP-UPLOAD] onerror fired. readyState:', xhr.readyState, 'status:', xhr.status, 'statusText:', xhr.statusText, 'responseText:', xhr.responseText);
-          reject(new Error(`Network error during upload (readyState=${xhr.readyState}, status=${xhr.status})`));
-        };
-        xhr.ontimeout = () => reject(new Error('Upload timed out'));
+        xhr.upload.onprogress = e => { if (e.lengthComputable) updateProgress(e.loaded); };
+        xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText || 'no response body'}`));
+        xhr.onerror = () => reject(new Error(`Network error during upload (status=${xhr.status})`));
         xhr.send(file);
       });
     } else {
@@ -1448,12 +1487,11 @@ async function uploadAndAddEpisode() {
               xhr.setRequestHeader('Authorization', partAuth);
               xhr.setRequestHeader('X-Bz-Part-Number', partNumber);
               xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
-              xhr.upload.onprogress = e => { if (e.lengthComputable) updateEpProgress(uploadedBytes + e.loaded); };
+              xhr.upload.onprogress = e => { if (e.lengthComputable) updateProgress(uploadedBytes + e.loaded); };
               xhr.onload = () => {
                 if (xhr.status === 200) {
                   const resp = JSON.parse(xhr.responseText);
-                  const s = resp.contentSha1 || '';
-                  resolve(s.replace('unverified:', ''));
+                  resolve((resp.contentSha1 || '').replace('unverified:', ''));
                 } else reject(new Error('Part failed: ' + xhr.status));
               };
               xhr.onerror = () => reject(new Error('Network error on part ' + partNumber));
@@ -1464,7 +1502,7 @@ async function uploadAndAddEpisode() {
         }
         partSha1Array.push(sha1);
         uploadedBytes += chunk.size;
-        updateEpProgress(uploadedBytes);
+        updateProgress(uploadedBytes);
       }
       const finishRes = await fetch(`${ADMIN_API}/b2-finish-large-file`, {
         method: 'POST',
@@ -1474,11 +1512,9 @@ async function uploadAndAddEpisode() {
       const finishData = await finishRes.json();
       if (!finishRes.ok) throw new Error(finishData.error || 'Failed to finish upload');
     }
-    _epXHR = null;
-    document.getElementById('epProgressFill').style.width = '100%';
-    document.getElementById('epProgressLabel').textContent = '✅ Upload complete!';
-    showStatus('episodeAddStatus','Adding episode to catalog...','info');
-    // Save episode to catalog
+
+    setPct(100);
+    setStatus('Saving to catalog...', 'var(--gold)');
     const res = await fetch(`${ADMIN_API}/add-episode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
@@ -1486,15 +1522,13 @@ async function uploadAndAddEpisode() {
     });
     const data = await res.json();
     if (data.success) {
-      showStatus('episodeAddStatus', `✅ S${season}E${epNum} added!`, 'success');
-      toast('Episode added!', 'success');
+      setStatus('✅ Added', '#4ade80');
+      toast(`S${season}E${epNum} added!`, 'success');
       loadSeries();
     } else throw new Error(data.error);
   } catch(e) {
-    showStatus('episodeAddStatus','❌ '+e.message,'error');
-    document.getElementById('epProgressWrap').style.display = 'none';
+    setStatus('❌ ' + e.message, '#f87171');
   }
-  btn.disabled = false; btn.innerHTML = '⬆️ Upload & Add Episode';
 }
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
