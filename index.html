@@ -1363,6 +1363,15 @@ let _epActiveCount = 0;
 const _epMaxConcurrent = 3;
 const _epPendingQueue = [];
 
+// Serializes catalog-write calls (add-episode) so concurrent uploads
+// never race on the read-modify-write cycle in the worker's KV catalog.
+let _epCatalogLock = Promise.resolve();
+function _epWithCatalogLock(fn) {
+  const run = _epCatalogLock.then(fn, fn);
+  _epCatalogLock = run.then(() => {}, () => {});
+  return run;
+}
+
 function _epMakeRow(label) {
   const list = document.getElementById('epQueueList');
   const wrap = document.createElement('div');
@@ -1522,12 +1531,14 @@ async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, f
 
     setPct(file.size);
     setStatus('Saving to catalog...', 'var(--gold)');
-    const res = await fetch(`${ADMIN_API}/add-episode`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-      body: JSON.stringify({ seriesKey: seriesTmdbId, season, episode: epNum, title: epTitle, fileName }),
+    const data = await _epWithCatalogLock(async () => {
+      const res = await fetch(`${ADMIN_API}/add-episode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+        body: JSON.stringify({ seriesKey: seriesTmdbId, season, episode: epNum, title: epTitle, fileName }),
+      });
+      return res.json();
     });
-    const data = await res.json();
     if (data.success) {
       setStatus('✅ Added', '#4ade80');
       toast(`S${season}E${epNum} added!`, 'success');
