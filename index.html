@@ -322,6 +322,14 @@ input[type=text]::placeholder { color: var(--gray2); }
           <span id="africanCinemaSlider" style="position:absolute;cursor:pointer;inset:0;background:#333;border-radius:26px;transition:0.2s;"></span>
         </label>
       </div>
+      <div id="githubTokenSection" style="display:none;background:var(--card-bg,#1a1a1a);border:1px solid var(--border,#333);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:0.4rem;">🔑 GitHub Token (Sitemap Auto-Push)</div>
+        <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.6rem;" id="githubTokenStatus">Loading...</div>
+        <div style="display:flex;gap:0.5rem;">
+          <input type="password" id="githubTokenInput" placeholder="ghp_... or github_pat_..." style="flex:1;padding:0.5rem;border-radius:6px;border:1px solid var(--border,#333);background:#111;color:#eee;font-size:0.85rem;">
+          <button class="btn btn-sm btn-gold" style="padding:0.5rem 1rem;font-size:0.8rem;" onclick="saveGithubToken()">Save</button>
+        </div>
+      </div>
       <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">Live preview of Picha+</div>
       <div class="site-frame-wrap">
         <div class="site-frame-toolbar">
@@ -526,6 +534,42 @@ async function loadSiteSettings() {
     const toggle = document.getElementById('africanCinemaToggle');
     if (toggle) toggle.checked = settings.africanCinemaEnabled !== false;
   } catch (e) {}
+
+  if (isSuperAdmin) {
+    document.getElementById('githubTokenSection').style.display = 'block';
+    loadGithubTokenStatus();
+  }
+}
+
+async function loadGithubTokenStatus() {
+  try {
+    const res = await fetch(`${ADMIN_API}/admin/github-token-status`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    const statusEl = document.getElementById('githubTokenStatus');
+    statusEl.textContent = data.isSet
+      ? `✅ Token set (ends in ...${data.last4})`
+      : '⚠️ No token set — sitemap auto-push is disabled';
+  } catch (e) {
+    document.getElementById('githubTokenStatus').textContent = 'Could not check token status.';
+  }
+}
+
+async function saveGithubToken() {
+  const input = document.getElementById('githubTokenInput');
+  const token = input.value.trim();
+  if (!token) return alert('Enter a token first.');
+  try {
+    await fetch(`${ADMIN_API}/admin/set-github-token`, {
+      method: 'POST',
+      headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    input.value = '';
+    toast('GitHub token saved');
+    loadGithubTokenStatus();
+  } catch (e) {
+    alert('Failed to save token. Please try again.');
+  }
 }
 
 async function toggleAfricanCinema(enabled) {
