@@ -147,6 +147,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <div class="tab" onclick="switchTab('users')">👥 Users</div>
     <div class="tab" id="adminsTab" style="display:none;" onclick="switchTab('admins')">🔑 Admins</div>
     <div class="tab" onclick="switchTab('site')">🌐 Site</div>
+    <div class="tab" onclick="switchTab('analytics')">📊 Analytics</div>
   </div>
   <div class="main">
 
@@ -309,6 +310,20 @@ input[type=text]::placeholder { color: var(--gray2); }
         <div class="status" id="adminAddStatus"></div>
       </div>
       <div id="adminsList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="tab-content" id="tab-analytics">
+      <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem;">
+        <label style="margin:0;font-size:0.8rem;color:var(--gray);">Period:</label>
+        <select id="analyticsDays" onchange="loadAnalytics()" style="width:auto;padding:0.4rem 0.6rem;">
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="365">Last year</option>
+        </select>
+      </div>
+      <div id="analyticsContent"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
     </div>
 
     <!-- SITE -->
@@ -517,7 +532,7 @@ async function signOut() {
 }
 
 function switchTab(name) {
-  const tabs = ['add','movies','addseries','series','users','admins','site'];
+  const tabs = ['add','movies','addseries','series','users','admins','site','analytics'];
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
@@ -526,6 +541,7 @@ function switchTab(name) {
   if (name==='users') loadUsers();
   if (name==='admins') loadAdmins();
   if (name==='site') loadSiteSettings();
+  if (name==='analytics') loadAnalytics();
 }
 
 // ── SITE SETTINGS ─────────────────────────────────────────────────────────────
@@ -536,6 +552,86 @@ async function loadSiteSettings() {
     const toggle = document.getElementById('africanCinemaToggle');
     if (toggle) toggle.checked = settings.africanCinemaEnabled !== false;
   } catch (e) {}
+}
+
+// ── ANALYTICS ─────────────────────────────────────────────────────────────────
+const TMDB_GENRE_MAP = {
+  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
+  99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
+  27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Science Fiction',
+  10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western',
+  10759: 'Action & Adventure', 10762: 'Kids', 10763: 'News', 10764: 'Reality',
+  10765: 'Sci-Fi & Fantasy', 10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics',
+};
+
+function _analyticsBarRow(label, count, maxCount, extra = '') {
+  const pct = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+  return `
+    <div style="margin-bottom:0.6rem;">
+      <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.2rem;">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-right:0.5rem;">${esc(label)}${extra}</span>
+        <span style="color:var(--gold);font-weight:600;flex-shrink:0;">${count}</span>
+      </div>
+      <div style="background:#222;border-radius:4px;height:6px;overflow:hidden;">
+        <div style="background:var(--gold);height:100%;width:${pct}%;"></div>
+      </div>
+    </div>`;
+}
+
+async function loadAnalytics() {
+  const days = document.getElementById('analyticsDays')?.value || 30;
+  const container = document.getElementById('analyticsContent');
+  container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const [analyticsRes, moviesRes, seriesRes] = await Promise.all([
+      fetch(`${ADMIN_API}/analytics/overview?days=${days}`, { headers: { 'X-Session-Token': sessionToken } }),
+      fetch(`${ADMIN_API}/movies`, { headers: { 'X-Session-Token': sessionToken } }),
+      fetch(`${ADMIN_API}/series`, { headers: { 'X-Session-Token': sessionToken } }),
+    ]);
+    const analytics = await analyticsRes.json();
+    const moviesData = await moviesRes.json();
+    const seriesData = await seriesRes.json();
+
+    // Build a lookup: movieId (the KV key used in events, e.g. "119051_VJ Uncle T") -> title/poster
+    const titleLookup = {};
+    (moviesData.movies || []).forEach(m => { if (m._key) titleLookup[m._key] = { title: m.title, poster: m.poster, type: 'movie' }; });
+    (seriesData.series || []).forEach(s => { if (s._key) titleLookup[s._key] = { title: s.title, poster: s.poster, type: 'series' }; });
+
+    const resolveTitle = (movieId) => {
+      const match = titleLookup[movieId];
+      if (match) return `${match.title} ${match.type === 'series' ? '📺' : '🎬'}`;
+      // Fall back to matching by tmdbId prefix (in case the exact _key format differs)
+      const baseId = String(movieId).split('_')[0];
+      const fallback = Object.entries(titleLookup).find(([k]) => k.split('_')[0] === baseId);
+      return fallback ? `${fallback[1].title} ${fallback[1].type === 'series' ? '📺' : '🎬'}` : movieId;
+    };
+
+    const maxSearch = Math.max(...(analytics.topSearches || []).map(r => r.count), 1);
+    const maxMovies = Math.max(...(analytics.topMovies || []).map(r => r.plays), 1);
+    const maxVJs = Math.max(...(analytics.topVJs || []).map(r => r.count), 1);
+    const maxGenres = Math.max(...(analytics.topGenres || []).map(r => r.count), 1);
+
+    container.innerHTML = `
+      <div class="step" style="margin-bottom:1rem;">
+        <div class="step-header"><div class="step-title">🔍 Top Searches</div></div>
+        ${(analytics.topSearches || []).length ? analytics.topSearches.map(r => _analyticsBarRow(r.query, r.count, maxSearch)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No search data for this period.</div>'}
+      </div>
+      <div class="step" style="margin-bottom:1rem;">
+        <div class="step-header"><div class="step-title">▶️ Most Played</div></div>
+        ${(analytics.topMovies || []).length ? analytics.topMovies.map(r => _analyticsBarRow(resolveTitle(r.movieId), r.plays, maxMovies)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No play data for this period.</div>'}
+      </div>
+      <div class="step" style="margin-bottom:1rem;">
+        <div class="step-header"><div class="step-title">🎙️ Most Watched VJs</div></div>
+        ${(analytics.topVJs || []).length ? analytics.topVJs.map(r => _analyticsBarRow(r.vj, r.count, maxVJs)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No VJ data for this period.</div>'}
+      </div>
+      <div class="step">
+        <div class="step-header"><div class="step-title">🎭 Top Genres</div></div>
+        ${(analytics.topGenres || []).length ? analytics.topGenres.map(r => _analyticsBarRow(TMDB_GENRE_MAP[r.genreId] || `Genre ${r.genreId}`, r.count, maxGenres)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No genre data for this period.</div>'}
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div style="color:#f87171;padding:1rem;">Failed to load analytics: ${esc(e.message)}</div>`;
+  }
 
   if (isSuperAdmin) {
     document.getElementById('githubTokenSection').style.display = 'block';
