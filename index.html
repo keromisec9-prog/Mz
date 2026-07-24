@@ -219,6 +219,7 @@ input[type=text]::placeholder { color: var(--gray2); }
         <label style="margin-top:0.8rem;">Part (optional)</label>
         <input type="text" id="moviePart" placeholder="e.g. Part 1, Part 2, Director's Cut..." style="margin-bottom:0.5rem;"/>
         <label style="margin-top:0.8rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="isUgandan" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🌍 African Cinema</span></label>
+        <label style="margin-top:0.4rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="is18Plus" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🔞 18+ (Adult Content)</span></label>
         <button class="btn btn-gold btn-full btn-lg" id="addBtn" onclick="addMovie()">✅ Add Movie to Picha+</button>
         <div class="status" id="addStatus"></div>
       </div>
@@ -387,6 +388,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <input type="number" id="episodeNum" placeholder="e.g. 1" min="1"/>
     <label>Episode Title (optional)</label>
     <input type="text" id="episodeTitle" placeholder="e.g. Pilot"/>
+    <label style="margin-top:0.4rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="episode18Plus" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🔞 18+ (Adult Content)</span></label>
     <label>File Path (save as)</label>
     <input type="text" id="episodeFileName" placeholder="series/123/s1e1_title.mp4"/>
     <label>Video File</label>
@@ -962,7 +964,7 @@ async function addMovie() {
     const res = await fetch(`${ADMIN_API}/add-movie`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-      body: JSON.stringify({ ...selectedMovie, fileName: uploadedFileName, vj, part: document.getElementById('moviePart').value.trim() || null, isUgandan: document.getElementById('isUgandan').checked }),
+      body: JSON.stringify({ ...selectedMovie, fileName: uploadedFileName, vj, part: document.getElementById('moviePart').value.trim() || null, isUgandan: document.getElementById('isUgandan').checked, is18Plus: document.getElementById('is18Plus').checked }),
     });
     const data = await res.json();
     if (data.success) {
@@ -992,6 +994,7 @@ function resetForm() {
   document.getElementById('posterGrid').innerHTML = '';
   document.getElementById('moviePreview').innerHTML = '';
   document.getElementById('vjCustom').value = '';
+  document.getElementById('is18Plus').checked = false;
   selectedMovie = null; uploadedFileName = null; selectedVJ = 'VJ Junior';
   ['s1n','s2n','s3n'].forEach((id,i) => { document.getElementById(id).textContent=i+1; document.getElementById(id).style.background='var(--gold)'; });
   ['uploadStatus','tmdbStatus','addStatus'].forEach(id => document.getElementById(id).style.display='none');
@@ -1019,15 +1022,33 @@ function _movieCardHTML(m) {
     <div class="card" id="movieCard_${esc(m._key)}">
       <img src="${m.poster}" style="width:40px;height:60px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.display='none'"/>
       <div class="card-info">
-        <div class="card-title">${esc(m.title)}</div>
+        <div class="card-title">${esc(m.title)}${m.is18Plus ? ' <span style="color:#f87171;font-size:0.7rem;border:1px solid #f87171;border-radius:4px;padding:0.05rem 0.3rem;">18+</span>' : ''}</div>
         <div class="card-meta" id="movieMeta_${esc(m._key)}">${m.year} · ⭐${m.rating} · ${esc(m.vj||'')}${m.part ? ' · <span style="color:var(--gold);">'+esc(m.part)+'</span>' : ''}</div>
         <div id="movieEditRow_${esc(m._key)}" style="display:none;margin-top:0.4rem;gap:0.4rem;align-items:center;flex-wrap:wrap;"></div>
         <div id="moviePartRow_${esc(m._key)}" style="display:none;margin-top:0.4rem;gap:0.4rem;align-items:center;"></div>
       </div>
       <button class="btn btn-sm" onclick="toggleEditMovieVJ('${esc(m._key)}')" style="background:var(--bg3);" title="Edit VJ">✏️</button>
       <button class="btn btn-sm" onclick="toggleEditMoviePart('${esc(m._key)}','${esc(m.part||'')}')" style="background:var(--bg3);" title="Edit Part">🎬</button>
+      <button class="btn btn-sm" onclick="toggleMovie18Plus('${esc(m._key)}', ${!!m.is18Plus})" style="background:${m.is18Plus ? '#f87171' : 'var(--bg3)'};" title="Toggle 18+">🔞</button>
       <button class="btn btn-red btn-sm" onclick="deleteMovie('${esc(m._key)}','${esc(m.title)}')">🗑</button>
     </div>`;
+}
+
+async function toggleMovie18Plus(movieKey, currentState) {
+  try {
+    const res = await fetch(`${ADMIN_API}/toggle-movie-18plus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ movieKey, is18Plus: !currentState }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      const m = _allMoviesCache.find(x => x._key === movieKey);
+      if (m) m.is18Plus = !currentState;
+      toast(!currentState ? 'Marked 18+' : 'Unmarked 18+', 'success');
+      filterMoviesList(document.getElementById('movieSearchInput')?.value || '');
+    } else throw new Error(data.error);
+  } catch(e) { toast('Failed: ' + e.message, 'error'); }
 }
 
 function renderMoviesList(movies) {
@@ -1266,9 +1287,57 @@ async function loadSeries() {
             </div>
             <button class="btn btn-red btn-sm" onclick="deleteSeries('${s._key || s.tmdbId}','${esc(s.title)}')">🗑</button>
           </div>
-          <button class="btn btn-outline btn-sm btn-full" onclick="openAddEpisode('${s._key}','${esc(s.title)}')">➕ Add Episode</button>
+          <div style="display:flex;gap:0.5rem;">
+            <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openAddEpisode('${s._key}','${esc(s.title)}')">➕ Add Episode</button>
+            <button class="btn btn-outline btn-sm" style="flex:1;" onclick="toggleEpisodesView('${esc(s._key)}')">📋 View Episodes</button>
+          </div>
+          <div id="episodesView_${esc(s._key)}" style="display:none;flex-direction:column;gap:0.4rem;margin-top:0.3rem;"></div>
         </div>`).join('')}`;
+    window._seriesDataCache = data.series;
   } catch { document.getElementById('seriesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
+}
+
+function toggleEpisodesView(seriesKey) {
+  const container = document.getElementById(`episodesView_${seriesKey}`);
+  if (!container) return;
+  const isOpen = container.style.display !== 'none';
+  if (isOpen) { container.style.display = 'none'; container.innerHTML = ''; return; }
+
+  const series = (window._seriesDataCache || []).find(s => s._key === seriesKey);
+  if (!series) return;
+  const episodes = Object.entries(series.episodes || {})
+    .sort((a, b) => (a[1].season - b[1].season) || (a[1].episode - b[1].episode));
+
+  if (!episodes.length) {
+    container.innerHTML = '<div style="font-size:0.75rem;color:var(--gray);padding:0.3rem 0;">No episodes yet.</div>';
+    container.style.display = 'flex';
+    return;
+  }
+
+  container.innerHTML = episodes.map(([epKey, ep]) => `
+    <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg3);border-radius:6px;padding:0.4rem 0.6rem;font-size:0.78rem;">
+      <span style="flex:1;">S${ep.season}E${ep.episode}${ep.title ? ' — ' + esc(ep.title) : ''}${ep.is18Plus ? ' <span style="color:#f87171;font-size:0.68rem;border:1px solid #f87171;border-radius:4px;padding:0.02rem 0.25rem;">18+</span>' : ''}</span>
+      <button class="btn btn-sm" style="background:${ep.is18Plus ? '#f87171' : 'var(--bg2)'};padding:0.2rem 0.5rem;font-size:0.75rem;" onclick="toggleEpisode18Plus('${seriesKey}','${epKey}', ${!!ep.is18Plus})" title="Toggle 18+">🔞</button>
+    </div>`).join('');
+  container.style.display = 'flex';
+}
+
+async function toggleEpisode18Plus(seriesKey, epKey, currentState) {
+  try {
+    const res = await fetch(`${ADMIN_API}/toggle-episode-18plus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ seriesKey, epKey, is18Plus: !currentState }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      const series = (window._seriesDataCache || []).find(s => s._key === seriesKey);
+      if (series?.episodes?.[epKey]) series.episodes[epKey].is18Plus = !currentState;
+      toast(!currentState ? 'Episode marked 18+' : 'Episode unmarked 18+', 'success');
+      const container = document.getElementById(`episodesView_${seriesKey}`);
+      if (container) { container.style.display = 'none'; toggleEpisodesView(seriesKey); }
+    } else throw new Error(data.error);
+  } catch(e) { toast('Failed: ' + e.message, 'error'); }
 }
 
 async function deleteSeries(tmdbId, title) {
@@ -1443,6 +1512,7 @@ function queueEpisodeUpload() {
   const season = parseInt(document.getElementById('episodeSeason').value) || 1;
   const epNum  = parseInt(document.getElementById('episodeNum').value);
   const epTitle = document.getElementById('episodeTitle').value.trim();
+  const is18Plus = document.getElementById('episode18Plus').checked;
   const fileName = document.getElementById('episodeFileName').value.trim();
   const fileInput = document.getElementById('episodeFileInput');
 
@@ -1454,10 +1524,11 @@ function queueEpisodeUpload() {
   const label = `S${season}E${epNum}${epTitle ? ' — ' + epTitle : ''}`;
   const ui = _epMakeRow(label);
 
-  _epPendingQueue.push({ seriesTmdbId, season, epNum, epTitle, fileName, file, ui });
+  _epPendingQueue.push({ seriesTmdbId, season, epNum, epTitle, is18Plus, fileName, file, ui });
 
   document.getElementById('episodeNum').value = '';
   document.getElementById('episodeTitle').value = '';
+  document.getElementById('episode18Plus').checked = false;
   document.getElementById('episodeFileName').value = '';
   document.getElementById('epSelFileName').textContent = '';
   fileInput.value = '';
@@ -1477,7 +1548,7 @@ function _epProcessQueue() {
   }
 }
 
-async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, file, ui }) {
+async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, is18Plus, fileName, file, ui }) {
   const setStatus = (text, color) => { ui.statusEl.textContent = text; if (color) ui.statusEl.style.color = color; };
   const totalMB = (file.size / 1024 / 1024).toFixed(1);
   let partLabel = '';
@@ -1579,7 +1650,7 @@ async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, f
       const res = await fetch(`${ADMIN_API}/add-episode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-        body: JSON.stringify({ seriesKey: seriesTmdbId, season, episode: epNum, title: epTitle, fileName }),
+        body: JSON.stringify({ seriesKey: seriesTmdbId, season, episode: epNum, title: epTitle, fileName, is18Plus }),
       });
       return res.json();
     });
