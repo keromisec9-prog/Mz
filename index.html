@@ -316,6 +316,9 @@ input[type=text]::placeholder { color: var(--gray2); }
 
     <!-- MAINTENANCE -->
     <div class="tab-content" id="tab-maintenance">
+      <div id="maintenanceBanner" style="padding:1rem;border-radius:8px;margin-bottom:1rem;font-weight:bold;text-align:center;">
+        Checking live status...
+      </div>
       <div class="step">
         <div class="step-header"><div class="step-title">App Maintenance Mode</div></div>
         <label style="display:flex;align-items:center;gap:0.6rem;">
@@ -328,8 +331,9 @@ input[type=text]::placeholder { color: var(--gray2); }
         <input type="text" id="maintenanceMessage" placeholder="We're upgrading our servers."/>
         <label>End time (optional — leave blank for &quot;To be announced&quot;)</label>
         <input type="datetime-local" id="maintenanceEndTime"/>
-        <div style="margin-top:1rem;">
+        <div style="margin-top:1rem;display:flex;gap:0.6rem;">
           <button class="btn btn-gold" onclick="saveMaintenanceStatus()">Save</button>
+          <button class="btn btn-red" onclick="turnOffMaintenanceNow()">Turn OFF Now</button>
         </div>
         <div class="status" id="maintenanceStatus"></div>
       </div>
@@ -571,18 +575,33 @@ function switchTab(name) {
 
 
 // ── MAINTENANCE MODE ────────────────────────────────────────────────────────
+function renderMaintenanceBanner(data) {
+  const banner = document.getElementById('maintenanceBanner');
+  if (data.maintenance) {
+    banner.style.background = 'rgba(255,80,0,0.2)';
+    banner.style.color = '#ff8000';
+    banner.textContent = '🚧 LIVE: Maintenance mode is ON — app is showing maintenance screen';
+  } else {
+    banner.style.background = 'rgba(0,200,100,0.15)';
+    banner.style.color = '#00c864';
+    banner.textContent = '✅ LIVE: Maintenance mode is OFF — app is running normally';
+  }
+}
+
+async function fetchMaintenanceStatus() {
+  const res = await fetch(`${ADMIN_API}/admin/maintenance-status`, { headers: { 'X-Session-Token': sessionToken } });
+  if (!res.ok) throw new Error('status fetch failed');
+  return await res.json();
+}
+
 async function loadMaintenanceStatus() {
   try {
-    const res = await fetch(`${ADMIN_API}/admin/maintenance-status`, { headers: { 'X-Session-Token': sessionToken } });
-    const data = await res.json();
+    const data = await fetchMaintenanceStatus();
     document.getElementById('maintenanceToggle').checked = !!data.maintenance;
     document.getElementById('maintenanceTitle').value = data.title || '';
     document.getElementById('maintenanceMessage').value = data.message || '';
-    if (data.endTime) {
-      document.getElementById('maintenanceEndTime').value = data.endTime.slice(0,16);
-    } else {
-      document.getElementById('maintenanceEndTime').value = '';
-    }
+    document.getElementById('maintenanceEndTime').value = data.endTime ? data.endTime.slice(0,16) : '';
+    renderMaintenanceBanner(data);
   } catch (e) {
     document.getElementById('maintenanceStatus').textContent = 'Failed to load status';
   }
@@ -606,6 +625,31 @@ async function saveMaintenanceStatus() {
     });
     if (res.ok) {
       statusEl.textContent = '✅ Saved';
+      const confirmed = await fetchMaintenanceStatus();
+      renderMaintenanceBanner(confirmed);
+    } else {
+      const err = await res.json();
+      statusEl.textContent = '❌ ' + (err.error || 'Failed');
+    }
+  } catch (e) {
+    statusEl.textContent = '❌ ' + e.message;
+  }
+}
+
+async function turnOffMaintenanceNow() {
+  const statusEl = document.getElementById('maintenanceStatus');
+  statusEl.textContent = 'Turning off...';
+  try {
+    const res = await fetch(`${ADMIN_API}/admin/set-maintenance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ maintenance: false })
+    });
+    if (res.ok) {
+      statusEl.textContent = '✅ Turned OFF';
+      document.getElementById('maintenanceToggle').checked = false;
+      const confirmed = await fetchMaintenanceStatus();
+      renderMaintenanceBanner(confirmed);
     } else {
       const err = await res.json();
       statusEl.textContent = '❌ ' + (err.error || 'Failed');
