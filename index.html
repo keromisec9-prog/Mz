@@ -333,7 +333,7 @@ input[type=text]::placeholder { color: var(--gray2); }
         <input type="datetime-local" id="maintenanceEndTime"/>
         <div style="margin-top:1rem;display:flex;gap:0.6rem;">
           <button class="btn btn-gold" onclick="saveMaintenanceStatus()">Save</button>
-          <button class="btn btn-red" onclick="turnOffMaintenanceNow()">Turn OFF Now</button>
+          <button class="btn btn-red" id="turnOffBtn" style="display:none;" onclick="turnOffMaintenanceNow()">Turn OFF Now</button>
         </div>
         <div class="status" id="maintenanceStatus"></div>
       </div>
@@ -577,14 +577,17 @@ function switchTab(name) {
 // ── MAINTENANCE MODE ────────────────────────────────────────────────────────
 function renderMaintenanceBanner(data) {
   const banner = document.getElementById('maintenanceBanner');
+  const turnOffBtn = document.getElementById('turnOffBtn');
   if (data.maintenance) {
     banner.style.background = 'rgba(255,80,0,0.2)';
     banner.style.color = '#ff8000';
     banner.textContent = '🚧 LIVE: Maintenance mode is ON — app is showing maintenance screen';
+    if (turnOffBtn) turnOffBtn.style.display = 'inline-block';
   } else {
     banner.style.background = 'rgba(0,200,100,0.15)';
     banner.style.color = '#00c864';
     banner.textContent = '✅ LIVE: Maintenance mode is OFF — app is running normally';
+    if (turnOffBtn) turnOffBtn.style.display = 'none';
   }
 }
 
