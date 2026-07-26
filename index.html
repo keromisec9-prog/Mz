@@ -146,6 +146,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <div class="tab" onclick="switchTab('series')">🎞 Series</div>
     <div class="tab" onclick="switchTab('users')">👥 Users</div>
     <div class="tab" id="adminsTab" style="display:none;" onclick="switchTab('admins')">🔑 Admins</div>
+    <div class="tab" id="maintenanceTab" style="display:none;" onclick="switchTab('maintenance')">🚧 Maintenance</div>
     <div class="tab" onclick="switchTab('site')">🌐 Site</div>
     <div class="tab" onclick="switchTab('analytics')">📊 Analytics</div>
   </div>
@@ -310,6 +311,28 @@ input[type=text]::placeholder { color: var(--gray2); }
         <div class="status" id="adminAddStatus"></div>
       </div>
       <div id="adminsList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
+    </div>
+
+
+    <!-- MAINTENANCE -->
+    <div class="tab-content" id="tab-maintenance">
+      <div class="step">
+        <div class="step-header"><div class="step-title">App Maintenance Mode</div></div>
+        <label style="display:flex;align-items:center;gap:0.6rem;">
+          <input type="checkbox" id="maintenanceToggle" style="width:auto;"/>
+          Enable maintenance mode (blocks app content, shows maintenance screen)
+        </label>
+        <label style="margin-top:1rem;">Title</label>
+        <input type="text" id="maintenanceTitle" placeholder="Scheduled Maintenance"/>
+        <label>Message</label>
+        <input type="text" id="maintenanceMessage" placeholder="We're upgrading our servers."/>
+        <label>End time (optional — leave blank for &quot;To be announced&quot;)</label>
+        <input type="datetime-local" id="maintenanceEndTime"/>
+        <div style="margin-top:1rem;">
+          <button class="btn btn-gold" onclick="saveMaintenanceStatus()">Save</button>
+        </div>
+        <div class="status" id="maintenanceStatus"></div>
+      </div>
     </div>
 
     <!-- ANALYTICS -->
@@ -491,6 +514,7 @@ async function checkAdmin() {
       document.getElementById('navUser').textContent = data.name || data.email;
       document.getElementById('signOutBtn').style.display = 'block';
       if (isSuperAdmin) document.getElementById('adminsTab').style.display = 'block';
+      if (isSuperAdmin) document.getElementById('maintenanceTab').style.display = 'block';
       loadVJs();
     } else if (res.status === 401 || res.status === 403) {
       // Session expired or invalid — clear and show sign in
@@ -532,7 +556,7 @@ async function signOut() {
 }
 
 function switchTab(name) {
-  const tabs = ['add','movies','addseries','series','users','admins','site','analytics'];
+  const tabs = ['add','movies','addseries','series','users','admins','maintenance','site','analytics'];
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
@@ -540,8 +564,55 @@ function switchTab(name) {
   if (name==='series') loadSeries();
   if (name==='users') loadUsers();
   if (name==='admins') loadAdmins();
+  if (name==='maintenance') loadMaintenanceStatus();
   if (name==='site') loadSiteSettings();
   if (name==='analytics') loadAnalytics();
+}
+
+
+// ── MAINTENANCE MODE ────────────────────────────────────────────────────────
+async function loadMaintenanceStatus() {
+  try {
+    const res = await fetch(`${ADMIN_API}/admin/maintenance-status`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    document.getElementById('maintenanceToggle').checked = !!data.maintenance;
+    document.getElementById('maintenanceTitle').value = data.title || '';
+    document.getElementById('maintenanceMessage').value = data.message || '';
+    if (data.endTime) {
+      document.getElementById('maintenanceEndTime').value = data.endTime.slice(0,16);
+    } else {
+      document.getElementById('maintenanceEndTime').value = '';
+    }
+  } catch (e) {
+    document.getElementById('maintenanceStatus').textContent = 'Failed to load status';
+  }
+}
+
+async function saveMaintenanceStatus() {
+  const statusEl = document.getElementById('maintenanceStatus');
+  statusEl.textContent = 'Saving...';
+  try {
+    const endTimeRaw = document.getElementById('maintenanceEndTime').value;
+    const body = {
+      maintenance: document.getElementById('maintenanceToggle').checked,
+      title: document.getElementById('maintenanceTitle').value,
+      message: document.getElementById('maintenanceMessage').value,
+      endTime: endTimeRaw ? new Date(endTimeRaw).toISOString() : null
+    };
+    const res = await fetch(`${ADMIN_API}/admin/set-maintenance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      statusEl.textContent = '✅ Saved';
+    } else {
+      const err = await res.json();
+      statusEl.textContent = '❌ ' + (err.error || 'Failed');
+    }
+  } catch (e) {
+    statusEl.textContent = '❌ ' + e.message;
+  }
 }
 
 // ── SITE SETTINGS ─────────────────────────────────────────────────────────────
