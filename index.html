@@ -331,6 +331,13 @@ input[type=text]::placeholder { color: var(--gray2); }
         <input type="text" id="maintenanceMessage" placeholder="We're upgrading our servers."/>
         <label>End time (optional — leave blank for &quot;To be announced&quot;)</label>
         <input type="datetime-local" id="maintenanceEndTime"/>
+        <label style="margin-top:1rem;">Status (shown when no end time is set)</label>
+        <select id="maintenanceStatusCode">
+          <option value="investigating">🟡 Investigating</option>
+          <option value="applying_fix">🟠 Applying a Fix</option>
+          <option value="verifying">🔵 Verifying Systems</option>
+          <option value="almost_ready">🟢 Almost Ready</option>
+        </select>
         <div style="margin-top:1rem;display:flex;gap:0.6rem;">
           <button class="btn btn-gold" onclick="saveMaintenanceStatus()">Save</button>
           <button class="btn btn-red" id="turnOffBtn" style="display:none;" onclick="turnOffMaintenanceNow()">Turn OFF Now</button>
@@ -604,6 +611,7 @@ async function loadMaintenanceStatus() {
     document.getElementById('maintenanceTitle').value = data.title || '';
     document.getElementById('maintenanceMessage').value = data.message || '';
     document.getElementById('maintenanceEndTime').value = data.endTime ? data.endTime.slice(0,16) : '';
+    document.getElementById('maintenanceStatusCode').value = data.statusCode || 'investigating';
     renderMaintenanceBanner(data);
   } catch (e) {
     document.getElementById('maintenanceStatus').textContent = 'Failed to load status';
@@ -615,11 +623,13 @@ async function saveMaintenanceStatus() {
   statusEl.textContent = 'Saving...';
   try {
     const endTimeRaw = document.getElementById('maintenanceEndTime').value;
+    const statusCode = document.getElementById('maintenanceStatusCode').value;
     const body = {
       maintenance: document.getElementById('maintenanceToggle').checked,
       title: document.getElementById('maintenanceTitle').value,
       message: document.getElementById('maintenanceMessage').value,
-      endTime: endTimeRaw ? new Date(endTimeRaw).toISOString() : null
+      endTime: endTimeRaw ? new Date(endTimeRaw).toISOString() : null,
+      statusCode: statusCode
     };
     const res = await fetch(`${ADMIN_API}/admin/set-maintenance`, {
       method: 'POST',
