@@ -147,6 +147,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <div class="tab" onclick="switchTab('users')">👥 Users</div>
     <div class="tab" id="adminsTab" style="display:none;" onclick="switchTab('admins')">🔑 Admins</div>
     <div class="tab" id="maintenanceTab" style="display:none;" onclick="switchTab('maintenance')">🚧 Maintenance</div>
+    <div class="tab" onclick="switchTab('broadcast')">📢 Broadcast</div>
     <div class="tab" onclick="switchTab('site')">🌐 Site</div>
     <div class="tab" onclick="switchTab('analytics')">📊 Analytics</div>
   </div>
@@ -343,6 +344,25 @@ input[type=text]::placeholder { color: var(--gray2); }
           <button class="btn btn-red" id="turnOffBtn" style="display:none;" onclick="turnOffMaintenanceNow()">Turn OFF Now</button>
         </div>
         <div class="status" id="maintenanceStatus"></div>
+      </div>
+    </div>
+
+
+    <!-- BROADCAST MESSAGE -->
+    <div class="tab-content" id="tab-broadcast">
+      <div class="step">
+        <div class="step-header"><div class="step-title">Broadcast Message</div></div>
+        <div style="font-size:0.82rem;color:var(--gray);margin-bottom:0.8rem;">
+          Shows in the app's status bar, alternating with the subscription status message. Visible to all users.
+        </div>
+        <div id="broadcastBanner" style="padding:0.8rem;border-radius:8px;margin-bottom:1rem;font-weight:bold;text-align:center;"></div>
+        <label>Message text</label>
+        <input type="text" id="broadcastText" placeholder="e.g. Scheduled maintenance tonight 11PM-1AM, streaming may be briefly unavailable"/>
+        <div style="margin-top:1rem;display:flex;gap:0.6rem;">
+          <button class="btn btn-gold" onclick="saveBroadcastMessage()">Post Message</button>
+          <button class="btn btn-red" id="clearBroadcastBtn" style="display:none;" onclick="clearBroadcastMessage()">Remove Message</button>
+        </div>
+        <div class="status" id="broadcastStatus"></div>
       </div>
     </div>
 
@@ -567,7 +587,7 @@ async function signOut() {
 }
 
 function switchTab(name) {
-  const tabs = ['add','movies','addseries','series','users','admins','maintenance','site','analytics'];
+  const tabs = ['add','movies','addseries','series','users','admins','maintenance','broadcast','site','analytics'];
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
@@ -576,6 +596,7 @@ function switchTab(name) {
   if (name==='users') loadUsers();
   if (name==='admins') loadAdmins();
   if (name==='maintenance') loadMaintenanceStatus();
+  if (name==='broadcast') loadBroadcastMessage();
   if (name==='site') loadSiteSettings();
   if (name==='analytics') loadAnalytics();
 }
@@ -663,6 +684,84 @@ async function turnOffMaintenanceNow() {
       document.getElementById('maintenanceToggle').checked = false;
       const confirmed = await fetchMaintenanceStatus();
       renderMaintenanceBanner(confirmed);
+    } else {
+      const err = await res.json();
+      statusEl.textContent = '❌ ' + (err.error || 'Failed');
+    }
+  } catch (e) {
+    statusEl.textContent = '❌ ' + e.message;
+  }
+}
+
+
+// ── BROADCAST MESSAGE ───────────────────────────────────────────────────────
+function renderBroadcastBanner(data) {
+  const banner = document.getElementById('broadcastBanner');
+  const clearBtn = document.getElementById('clearBroadcastBtn');
+  if (data.active && data.text) {
+    banner.style.background = 'rgba(0,150,255,0.15)';
+    banner.style.color = '#4db8ff';
+    banner.textContent = '📢 LIVE: "' + data.text + '"';
+    clearBtn.style.display = 'inline-block';
+  } else {
+    banner.style.background = 'rgba(255,255,255,0.05)';
+    banner.style.color = '#888';
+    banner.textContent = 'No broadcast message is currently live';
+    clearBtn.style.display = 'none';
+  }
+}
+
+async function fetchBroadcastMessage() {
+  const res = await fetch(`${ADMIN_API}/admin/broadcast-message`, { headers: { 'X-Session-Token': sessionToken } });
+  if (!res.ok) throw new Error('fetch failed');
+  return await res.json();
+}
+
+async function loadBroadcastMessage() {
+  try {
+    const data = await fetchBroadcastMessage();
+    document.getElementById('broadcastText').value = data.text || '';
+    renderBroadcastBanner(data);
+  } catch (e) {
+    document.getElementById('broadcastStatus').textContent = 'Failed to load';
+  }
+}
+
+async function saveBroadcastMessage() {
+  const statusEl = document.getElementById('broadcastStatus');
+  const text = document.getElementById('broadcastText').value.trim();
+  if (!text) { statusEl.textContent = '❌ Enter a message first'; return; }
+  statusEl.textContent = 'Posting...';
+  try {
+    const res = await fetch(`${ADMIN_API}/admin/set-broadcast-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ text })
+    });
+    if (res.ok) {
+      statusEl.textContent = '✅ Posted';
+      renderBroadcastBanner(await fetchBroadcastMessage());
+    } else {
+      const err = await res.json();
+      statusEl.textContent = '❌ ' + (err.error || 'Failed');
+    }
+  } catch (e) {
+    statusEl.textContent = '❌ ' + e.message;
+  }
+}
+
+async function clearBroadcastMessage() {
+  const statusEl = document.getElementById('broadcastStatus');
+  statusEl.textContent = 'Removing...';
+  try {
+    const res = await fetch(`${ADMIN_API}/admin/clear-broadcast-message`, {
+      method: 'POST',
+      headers: { 'X-Session-Token': sessionToken }
+    });
+    if (res.ok) {
+      statusEl.textContent = '✅ Removed';
+      document.getElementById('broadcastText').value = '';
+      renderBroadcastBanner(await fetchBroadcastMessage());
     } else {
       const err = await res.json();
       statusEl.textContent = '❌ ' + (err.error || 'Failed');
