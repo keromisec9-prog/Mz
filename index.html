@@ -2004,8 +2004,10 @@ async function loadUsers() {
             <div class="card-title">${esc(u.name)}</div>
             <div class="card-meta">${esc(u.email)}</div>
             <span class="pill ${isPremium?'pill-premium':'pill-free'}">${isPremium?`PREMIUM · ${days}d left`:'FREE'}</span>
+            ${u.pendingPlan ? `<div style="font-size:0.7rem;color:var(--gray);margin-top:0.2rem;">then ${u.pendingPlan} · ${Math.ceil(u.pendingDurationMs/(1000*60*60*24))}d</div>` : ''}
           </div>
           <button class="btn btn-green btn-sm" onclick="openGrant('${u.id}','${esc(u.name)}')">🎁</button>
+          <button class="btn btn-sm" style="background:#3a1a1a;color:#f66;" onclick="confirmRevoke('${u.id}','${esc(u.name)}')">🚫</button>
         </div>`;
       }).join('')}`;
   } catch { document.getElementById('usersList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
@@ -2018,6 +2020,20 @@ function openGrant(userId, name) {
   document.getElementById('grantModal').classList.add('active');
 }
 function closeGrant() { document.getElementById('grantModal').classList.remove('active'); grantUserId = null; }
+
+async function confirmRevoke(userId, name) {
+  if (!confirm(`Revoke ALL subscriptions (active and pending) for ${name}?`)) return;
+  try {
+    const res = await fetch(`${ADMIN_API}/revoke-subscription`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ userId }),
+    });
+    const data = await res.json();
+    if (data.success) { toast(`Revoked all subscriptions for ${name}`, 'success'); loadUsers(); }
+    else throw new Error(data.error);
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
 
 const PLAN_DAYS = { daily:1, dailyplus:1, weekly:7, weeklyplus:7, monthly:30, monthlyplus:30, quarterly:90, yearly:365, premium:36500 };
 
