@@ -400,6 +400,13 @@ input[type=text]::placeholder { color: var(--gray2); }
           <button class="btn btn-sm btn-gold" style="padding:0.5rem 1rem;font-size:0.8rem;" onclick="saveGithubToken()">Save</button>
         </div>
       </div>
+      <div style="background:var(--card-bg,#1a1a1a);border:1px solid var(--border,#333);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
+          <div style="font-size:0.9rem;font-weight:600;">🗺️ Sitemap Auto-Update</div>
+          <button class="btn btn-sm btn-outline" style="padding:0.25rem 0.6rem;font-size:0.7rem;" onclick="loadSitemapStatus()">↻ Refresh</button>
+        </div>
+        <div id="sitemapStatusBox" style="font-size:0.8rem;color:var(--gray);">Loading...</div>
+      </div>
       <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">Live preview of Picha+</div>
       <div class="site-frame-wrap">
         <div class="site-frame-toolbar">
@@ -598,6 +605,7 @@ function switchTab(name) {
   if (name==='maintenance') loadMaintenanceStatus();
   if (name==='broadcast') loadBroadcastMessage();
   if (name==='site') loadSiteSettings();
+  if (name==='site') loadSitemapStatus();
   if (name==='analytics') loadAnalytics();
 }
 
@@ -768,6 +776,41 @@ async function clearBroadcastMessage() {
     }
   } catch (e) {
     statusEl.textContent = '❌ ' + e.message;
+  }
+}
+
+
+// ── SITEMAP STATUS ──────────────────────────────────────────────────────────
+async function loadSitemapStatus() {
+  const box = document.getElementById('sitemapStatusBox');
+  if (!box) return;
+  box.textContent = 'Loading...';
+  try {
+    const res = await fetch(`${ADMIN_API}/admin/sitemap-status`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+
+    const counters = data.counters || { movies: 0, series: 0 };
+    const untilNext = Math.max(0, 5 - Math.max(counters.movies || 0, counters.series || 0));
+
+    let resultLine = '';
+    if (data.lastResult === 'success') {
+      const when = data.lastSuccessAt ? new Date(data.lastSuccessAt).toLocaleString() : 'unknown';
+      resultLine = `<div style="color:#4caf50;">✅ Last update succeeded — ${when}${data.urlCount ? ` (${data.urlCount} URLs)` : ''}</div>`;
+    } else if (data.lastResult === 'error') {
+      const when = data.lastAttemptAt ? new Date(data.lastAttemptAt).toLocaleString() : 'unknown';
+      resultLine = `<div style="color:#f44336;">❌ Last attempt failed — ${when}<br><span style="font-size:0.72rem;opacity:0.85;">${esc(data.lastError || 'Unknown error')}</span></div>`;
+    } else if (data.lastResult === 'pending') {
+      resultLine = `<div style="color:#ffb300;">⏳ Update in progress...</div>`;
+    } else {
+      resultLine = `<div>No auto-update has run yet.</div>`;
+    }
+
+    box.innerHTML = `
+      ${resultLine}
+      <div style="margin-top:0.5rem;">Progress: ${counters.movies || 0} movies, ${counters.series || 0} series added since last update — triggers again in ${untilNext} more.</div>
+    `;
+  } catch (e) {
+    box.textContent = 'Failed to load status';
   }
 }
 
