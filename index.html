@@ -403,7 +403,10 @@ input[type=text]::placeholder { color: var(--gray2); }
       <div style="background:var(--card-bg,#1a1a1a);border:1px solid var(--border,#333);border-radius:8px;padding:1rem;margin-bottom:1rem;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
           <div style="font-size:0.9rem;font-weight:600;">🗺️ Sitemap Auto-Update</div>
-          <button class="btn btn-sm btn-outline" style="padding:0.25rem 0.6rem;font-size:0.7rem;" onclick="loadSitemapStatus()">↻ Refresh</button>
+          <div style="display:flex;gap:0.4rem;">
+            <button class="btn btn-sm btn-outline" style="padding:0.25rem 0.6rem;font-size:0.7rem;" onclick="loadSitemapStatus()">↻ Refresh</button>
+            <button class="btn btn-sm btn-gold" style="padding:0.25rem 0.6rem;font-size:0.7rem;" id="sitemapForceBtn" onclick="forceSitemapUpdate()">⚡ Update Now</button>
+          </div>
         </div>
         <div id="sitemapStatusBox" style="font-size:0.8rem;color:var(--gray);">Loading...</div>
       </div>
@@ -812,6 +815,32 @@ async function loadSitemapStatus() {
   } catch (e) {
     box.textContent = 'Failed to load status';
   }
+}
+
+async function forceSitemapUpdate() {
+  const btn = document.getElementById('sitemapForceBtn');
+  const box = document.getElementById('sitemapStatusBox');
+  btn.disabled = true;
+  btn.textContent = 'Updating...';
+  box.textContent = 'Pushing sitemap to GitHub...';
+  try {
+    const res = await fetch(`${ADMIN_API}/admin/sitemap-force-update`, {
+      method: 'POST',
+      headers: { 'X-Session-Token': sessionToken }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      box.innerHTML = `<div style="color:#4caf50;">✅ Updated successfully — ${data.urlCount || 0} URLs</div>`;
+    } else {
+      const err = await res.json();
+      box.innerHTML = `<div style="color:#f44336;">❌ ${esc(err.error || 'Failed')}</div>`;
+    }
+  } catch (e) {
+    box.innerHTML = `<div style="color:#f44336;">❌ ${esc(e.message)}</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '⚡ Update Now';
+  setTimeout(loadSitemapStatus, 1500);
 }
 
 // ── SITE SETTINGS ─────────────────────────────────────────────────────────────
