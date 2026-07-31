@@ -882,12 +882,14 @@ async function loadAnalytics() {
   const container = document.getElementById('analyticsContent');
   container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
   try {
-    const [analyticsRes, moviesRes, seriesRes] = await Promise.all([
+    const [analyticsRes, precisionRes, moviesRes, seriesRes] = await Promise.all([
       fetch(`${ADMIN_API}/analytics/overview?days=${days}`, { headers: { 'X-Session-Token': sessionToken } }),
+      fetch(`${ADMIN_API}/analytics/precision?days=${days}`, { headers: { 'X-Session-Token': sessionToken } }),
       fetch(`${ADMIN_API}/movies`, { headers: { 'X-Session-Token': sessionToken } }),
       fetch(`${ADMIN_API}/series`, { headers: { 'X-Session-Token': sessionToken } }),
     ]);
     const analytics = await analyticsRes.json();
+    const precision = await precisionRes.json();
     const moviesData = await moviesRes.json();
     const seriesData = await seriesRes.json();
 
@@ -923,9 +925,24 @@ async function loadAnalytics() {
         <div class="step-header"><div class="step-title">🎙️ Most Watched VJs</div></div>
         ${(analytics.topVJs || []).length ? analytics.topVJs.map(r => _analyticsBarRow(r.vj, r.count, maxVJs)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No VJ data for this period.</div>'}
       </div>
-      <div class="step">
+      <div class="step" style="margin-bottom:1rem;">
         <div class="step-header"><div class="step-title">🎭 Top Genres</div></div>
         ${(analytics.topGenres || []).length ? analytics.topGenres.map(r => _analyticsBarRow(TMDB_GENRE_MAP[r.genreId] || `Genre ${r.genreId}`, r.count, maxGenres)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No genre data for this period.</div>'}
+      </div>
+      <div style="border-top:1px solid #333;margin:1.5rem 0;padding-top:0.3rem;">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--gold);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.8rem;">Precision Metrics — from actual watch progress, not raw event counts</div>
+      </div>
+      <div class="step" style="margin-bottom:1rem;">
+        <div class="step-header"><div class="step-title">👥 Unique Viewers Per Title</div></div>
+        ${(precision.topMoviesByViewers || []).length ? precision.topMoviesByViewers.map(r => _analyticsBarRow(r.title, r.uniqueViewers, Math.max(...(precision.topMoviesByViewers || []).map(x => x.uniqueViewers), 1), ` · ${r.avgCompletionPct != null ? r.avgCompletionPct + '% avg completion' : 'n/a'} · ${r.totalWatchHours}h watched`)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No precision data for this period.</div>'}
+      </div>
+      <div class="step" style="margin-bottom:1rem;">
+        <div class="step-header"><div class="step-title">🎭 Genre Completion & Watch Time</div></div>
+        ${(precision.topGenres || []).length ? precision.topGenres.map(r => _analyticsBarRow(TMDB_GENRE_MAP[r.genreId] || `Genre ${r.genreId}`, r.uniqueViewers, Math.max(...(precision.topGenres || []).map(x => x.uniqueViewers), 1), ` · ${r.avgCompletionPct != null ? r.avgCompletionPct + '% avg completion' : 'n/a'} · ${r.totalWatchHours}h watched`)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No precision data for this period.</div>'}
+      </div>
+      <div class="step">
+        <div class="step-header"><div class="step-title">🎙️ VJ Completion & Watch Time</div></div>
+        ${(precision.topVJs || []).length ? precision.topVJs.map(r => _analyticsBarRow(r.vj, r.uniqueViewers, Math.max(...(precision.topVJs || []).map(x => x.uniqueViewers), 1), ` · ${r.avgCompletionPct != null ? r.avgCompletionPct + '% avg completion' : 'n/a'} · ${r.totalWatchHours}h watched`)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No precision data for this period.</div>'}
       </div>
     `;
   } catch (e) {
