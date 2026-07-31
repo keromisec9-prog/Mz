@@ -940,9 +940,14 @@ async function loadAnalytics() {
         <div class="step-header"><div class="step-title">🎭 Genre Completion & Watch Time</div></div>
         ${(precision.topGenres || []).length ? precision.topGenres.map(r => _analyticsBarRow(TMDB_GENRE_MAP[r.genreId] || `Genre ${r.genreId}`, r.uniqueViewers, Math.max(...(precision.topGenres || []).map(x => x.uniqueViewers), 1), ` · ${r.avgCompletionPct != null ? r.avgCompletionPct + '% avg completion' : 'n/a'} · ${r.totalWatchHours}h watched`)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No precision data for this period.</div>'}
       </div>
-      <div class="step">
+      <div class="step" style="margin-bottom:1rem;">
         <div class="step-header"><div class="step-title">🎙️ VJ Completion & Watch Time</div></div>
         ${(precision.topVJs || []).length ? precision.topVJs.map(r => _analyticsBarRow(r.vj, r.uniqueViewers, Math.max(...(precision.topVJs || []).map(x => x.uniqueViewers), 1), ` · ${r.avgCompletionPct != null ? r.avgCompletionPct + '% avg completion' : 'n/a'} · ${r.totalWatchHours}h watched`)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No precision data for this period.</div>'}
+      </div>
+      <div class="step">
+        <div class="step-header"><div class="step-title">🤝 Content Partner Performance</div></div>
+        <div style="font-size:0.72rem;color:var(--gray);margin-bottom:0.6rem;">Only tracks titles uploaded since this feature was added — older catalog entries aren't attributed to an uploader.</div>
+        ${(precision.topUploaders || []).length ? precision.topUploaders.map(r => _analyticsBarRow(r.uploader, r.uniqueViewers, Math.max(...(precision.topUploaders || []).map(x => x.uniqueViewers), 1), ` · ${r.titleCount} title${r.titleCount !== 1 ? 's' : ''} · ${r.avgCompletionPct != null ? r.avgCompletionPct + '% avg completion' : 'n/a'} · ${r.totalWatchHours}h watched`)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No attributed uploads yet for this period.</div>'}
       </div>
     `;
   } catch (e) {
