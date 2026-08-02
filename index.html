@@ -147,6 +147,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <div class="tab" onclick="switchTab('users')">👥 Users</div>
     <div class="tab" id="adminsTab" style="display:none;" onclick="switchTab('admins')">🔑 Admins</div>
     <div class="tab" id="maintenanceTab" style="display:none;" onclick="switchTab('maintenance')">🚧 Maintenance</div>
+    <div class="tab" id="promoTab" style="display:none;" onclick="switchTab('promo')">🏷️ Promotions</div>
     <div class="tab" onclick="switchTab('broadcast')">📢 Broadcast</div>
     <div class="tab" onclick="switchTab('site')">🌐 Site</div>
     <div class="tab" onclick="switchTab('analytics')">📊 Analytics</div>
@@ -366,6 +367,42 @@ input[type=text]::placeholder { color: var(--gray2); }
       </div>
     </div>
 
+    <!-- PROMOTIONS -->
+    <div class="tab-content" id="tab-promo">
+      <div class="step">
+        <div class="step-header"><div class="step-title">Promotions</div></div>
+        <div style="font-size:0.82rem;color:var(--gray);margin-bottom:0.8rem;">
+          Discounts the selected plans by a percentage until the chosen end date/time, then pricing
+          automatically reverts — no need to remember to turn it off.
+        </div>
+        <div id="promoBanner" style="padding:0.8rem;border-radius:8px;margin-bottom:1rem;font-weight:bold;text-align:center;"></div>
+
+        <label>Percent off</label>
+        <input type="number" id="promoPercent" min="1" max="95" placeholder="e.g. 30"/>
+
+        <label style="margin-top:0.8rem;display:block;">Applies to</label>
+        <div style="display:flex;flex-direction:column;gap:0.3rem;margin-top:0.3rem;">
+          <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal;"><input type="checkbox" class="promoPlanCheck" value="daily"/> Daily</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal;"><input type="checkbox" class="promoPlanCheck" value="dailyplus"/> Daily+</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal;"><input type="checkbox" class="promoPlanCheck" value="weekly"/> Weekly</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal;"><input type="checkbox" class="promoPlanCheck" value="weeklyplus"/> Weekly+</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal;"><input type="checkbox" class="promoPlanCheck" value="monthly"/> Monthly</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal;"><input type="checkbox" class="promoPlanCheck" value="monthlyplus"/> Monthly+</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal;"><input type="checkbox" class="promoPlanCheck" value="quarterly"/> Quarterly</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal;"><input type="checkbox" class="promoPlanCheck" value="yearly"/> Yearly</label>
+        </div>
+
+        <label style="margin-top:0.8rem;display:block;">Offer ends</label>
+        <input type="datetime-local" id="promoEndTime"/>
+
+        <div style="margin-top:1rem;display:flex;gap:0.6rem;">
+          <button class="btn btn-gold" onclick="savePromo()">Start Promotion</button>
+          <button class="btn btn-red" id="clearPromoBtn" style="display:none;" onclick="clearPromo()">End Now</button>
+        </div>
+        <div class="status" id="promoStatus"></div>
+      </div>
+    </div>
+
     <!-- ANALYTICS -->
     <div class="tab-content" id="tab-analytics">
       <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem;">
@@ -556,6 +593,7 @@ async function checkAdmin() {
       document.getElementById('signOutBtn').style.display = 'block';
       if (isSuperAdmin) document.getElementById('adminsTab').style.display = 'block';
       if (isSuperAdmin) document.getElementById('maintenanceTab').style.display = 'block';
+      if (isSuperAdmin) document.getElementById('promoTab').style.display = 'block';
       loadVJs();
     } else if (res.status === 401 || res.status === 403) {
       // Session expired or invalid — clear and show sign in
@@ -597,7 +635,7 @@ async function signOut() {
 }
 
 function switchTab(name) {
-  const tabs = ['add','movies','addseries','series','users','admins','maintenance','broadcast','site','analytics'];
+  const tabs = ['add','movies','addseries','series','users','admins','maintenance','promo','broadcast','site','analytics'];
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
@@ -606,6 +644,7 @@ function switchTab(name) {
   if (name==='users') loadUsers();
   if (name==='admins') loadAdmins();
   if (name==='maintenance') loadMaintenanceStatus();
+  if (name==='promo') loadPromoStatus();
   if (name==='broadcast') loadBroadcastMessage();
   if (name==='site') loadSiteSettings();
   if (name==='site') loadSitemapStatus();
@@ -704,6 +743,100 @@ async function turnOffMaintenanceNow() {
   }
 }
 
+
+// ── PROMOTIONS ──────────────────────────────────────────────────────────────
+function _promoToDatetimeLocal(ms) {
+  const d = new Date(ms);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function renderPromoBanner(data) {
+  const banner = document.getElementById('promoBanner');
+  const clearBtn = document.getElementById('clearPromoBtn');
+  if (data.active && data.endTime) {
+    const endStr = new Date(data.endTime).toLocaleString();
+    const planNames = (data.plans || []).join(', ');
+    banner.style.background = 'rgba(0,150,255,0.15)';
+    banner.style.color = '#4db8ff';
+    banner.textContent = `🏷️ LIVE: ${data.percentOff}% off (${planNames}) — normal pricing resumes ${endStr}`;
+    clearBtn.style.display = 'inline-block';
+  } else {
+    banner.style.background = 'rgba(255,255,255,0.05)';
+    banner.style.color = '#888';
+    banner.textContent = 'No promotion is currently live';
+    clearBtn.style.display = 'none';
+  }
+}
+
+async function fetchPromoStatus() {
+  const res = await fetch(`${ADMIN_API}/admin/promo-status`, { headers: { 'X-Session-Token': sessionToken } });
+  if (!res.ok) throw new Error('fetch failed');
+  return await res.json();
+}
+
+async function loadPromoStatus() {
+  try {
+    const data = await fetchPromoStatus();
+    document.getElementById('promoPercent').value = data.percentOff || '';
+    document.querySelectorAll('.promoPlanCheck').forEach(cb => { cb.checked = (data.plans || []).includes(cb.value); });
+    document.getElementById('promoEndTime').value = data.endTime ? _promoToDatetimeLocal(data.endTime) : '';
+    renderPromoBanner(data);
+  } catch (e) {
+    document.getElementById('promoStatus').textContent = 'Failed to load';
+  }
+}
+
+async function savePromo() {
+  const statusEl = document.getElementById('promoStatus');
+  const percentOff = Number(document.getElementById('promoPercent').value);
+  const plans = Array.from(document.querySelectorAll('.promoPlanCheck:checked')).map(cb => cb.value);
+  const endTimeVal = document.getElementById('promoEndTime').value;
+  if (!percentOff || percentOff <= 0 || percentOff > 95) { statusEl.textContent = '❌ Enter a percent off between 1 and 95'; return; }
+  if (plans.length === 0) { statusEl.textContent = '❌ Select at least one plan'; return; }
+  if (!endTimeVal) { statusEl.textContent = '❌ Choose an end date/time'; return; }
+  const endTime = new Date(endTimeVal).toISOString();
+  statusEl.textContent = 'Saving...';
+  try {
+    const res = await fetch(`${ADMIN_API}/admin/set-promo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ percentOff, plans, endTime })
+    });
+    if (res.ok) {
+      statusEl.textContent = '✅ Promotion is live';
+      renderPromoBanner(await fetchPromoStatus());
+    } else {
+      const err = await res.json();
+      statusEl.textContent = '❌ ' + (err.error || 'Failed');
+    }
+  } catch (e) {
+    statusEl.textContent = '❌ ' + e.message;
+  }
+}
+
+async function clearPromo() {
+  const statusEl = document.getElementById('promoStatus');
+  statusEl.textContent = 'Ending...';
+  try {
+    const res = await fetch(`${ADMIN_API}/admin/clear-promo`, {
+      method: 'POST',
+      headers: { 'X-Session-Token': sessionToken }
+    });
+    if (res.ok) {
+      statusEl.textContent = '✅ Promotion ended';
+      document.getElementById('promoPercent').value = '';
+      document.querySelectorAll('.promoPlanCheck').forEach(cb => { cb.checked = false; });
+      document.getElementById('promoEndTime').value = '';
+      renderPromoBanner(await fetchPromoStatus());
+    } else {
+      const err = await res.json();
+      statusEl.textContent = '❌ ' + (err.error || 'Failed');
+    }
+  } catch (e) {
+    statusEl.textContent = '❌ ' + e.message;
+  }
+}
 
 // ── BROADCAST MESSAGE ───────────────────────────────────────────────────────
 function renderBroadcastBanner(data) {
