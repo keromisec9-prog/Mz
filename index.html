@@ -1566,6 +1566,18 @@ function queueMovieUpload() {
   document.getElementById('moviePreview').innerHTML = '';
   document.getElementById('vjCustom').value = '';
   document.getElementById('is18Plus').checked = false;
+  document.getElementById('manualMovieTitle').value = '';
+  document.getElementById('manualMovieYear').value = '';
+  document.getElementById('manualMovieOverview').value = '';
+  document.getElementById('manualMovieStatus').innerHTML = '';
+  document.getElementById('movieCustomPosterFile').value = '';
+  document.getElementById('movieCustomPosterPreview').style.display = 'none';
+  document.getElementById('movieCustomPosterPreview').src = '';
+  document.getElementById('movieCustomPosterStatus').textContent = '';
+  document.getElementById('movieCustomPosterUploadBtn').style.display = 'none';
+  document.getElementById('movieCustomPosterUploadBtn').disabled = false;
+  document.getElementById('movieCustomPosterUploadBtn').innerHTML = '⬆️ Upload';
+  customPosterUrl = null;
   selectedMovie = null;
   ['s1n','s2n','s3n'].forEach((id,i) => { document.getElementById(id).textContent=i+1; document.getElementById(id).style.background='var(--gold)'; });
 
