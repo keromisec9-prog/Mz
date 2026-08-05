@@ -224,7 +224,8 @@ input[type=text]::placeholder { color: var(--gray2); }
         <input type="text" id="moviePart" placeholder="e.g. Part 1, Part 2, Director's Cut..." style="margin-bottom:0.5rem;"/>
         <label style="margin-top:0.8rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="isUgandan" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🌍 African Cinema</span></label>
         <label style="margin-top:0.4rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="is18Plus" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🔞 18+ (Adult Content)</span></label>
-        <button class="btn btn-gold btn-full btn-lg" id="addBtn" onclick="addMovie()">✅ Add Movie to Picha+</button>
+        <div id="movieQueueList" style="margin-bottom:0.5rem;"></div>
+        <button class="btn btn-gold btn-full btn-lg" id="addBtn" onclick="queueMovieUpload()">✅ Add Movie to Picha+</button>
         <div class="status" id="addStatus"></div>
       </div>
     </div>
@@ -1503,30 +1504,199 @@ async function uploadCustomPoster_series() {
 
 
 
-async function addMovie() {
-  if (!uploadedFileName) return toast('Upload the video first (Step 1)', 'error');
+// ── PARALLEL MOVIE UPLOAD QUEUE ─────────────────────────────────────────
+let _movieActiveCount = 0;
+const _movieMaxConcurrent = 3;
+const _moviePendingQueue = [];
+
+// Serializes catalog-write calls (add-movie) so concurrent uploads
+// never race on the read-modify-write cycle in the worker's KV catalog.
+let _movieCatalogLock = Promise.resolve();
+function _movieWithCatalogLock(fn) {
+  const run = _movieCatalogLock.then(fn, fn);
+  _movieCatalogLock = run.then(() => {}, () => {});
+  return run;
+}
+
+function _movieMakeRow(label) {
+  const list = document.getElementById('movieQueueList');
+  const wrap = document.createElement('div');
+  wrap.className = 'progress-wrap';
+  wrap.style.display = 'block';
+  wrap.style.marginBottom = '0.75rem';
+  wrap.innerHTML = `
+    <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem;">
+      <span>${label}</span>
+      <span class="movie-row-status" style="color:var(--gray);">Queued</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill movie-row-fill" style="width:0%;"></div></div>
+    <div class="progress-label movie-row-pct">0%</div>
+  `;
+  list.appendChild(wrap);
+  return {
+    statusEl: wrap.querySelector('.movie-row-status'),
+    fillEl: wrap.querySelector('.movie-row-fill'),
+    pctEl: wrap.querySelector('.movie-row-pct')
+  };
+}
+
+function queueMovieUpload() {
   if (!selectedMovie) return toast('Select a movie from TMDB (Step 2)', 'error');
   if (!selectedMovie.poster) return toast('A poster is required — choose a TMDB poster or upload a custom one', 'error');
+  const fileInput = document.getElementById('fileInput');
+  if (!fileInput.files[0]) return toast('Select a video file', 'error');
+  const fileName = document.getElementById('fileNameInput').value.trim();
+  if (!fileName) return toast('Enter a file path', 'error');
+
+  const file = fileInput.files[0];
   const vj = document.getElementById('vjCustom').value.trim() || selectedVJ;
-  const btn = document.getElementById('addBtn');
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Adding...';
-  try {
-    const res = await fetch(`${ADMIN_API}/add-movie`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-      body: JSON.stringify({ ...selectedMovie, fileName: uploadedFileName, vj, part: document.getElementById('moviePart').value.trim() || null, isUgandan: document.getElementById('isUgandan').checked, is18Plus: document.getElementById('is18Plus').checked }),
+  const part = document.getElementById('moviePart').value.trim() || null;
+  const movieData = { ...selectedMovie, vj, part, isUgandan: document.getElementById('isUgandan').checked, is18Plus: document.getElementById('is18Plus').checked };
+  const label = `${selectedMovie.title}${part ? ' — ' + part : ''}`;
+  const ui = _movieMakeRow(label);
+
+  _moviePendingQueue.push({ movieData, fileName, file, ui });
+
+  fileInput.value = '';
+  document.getElementById('fileNameInput').value = '';
+  document.getElementById('moviePart').value = '';
+  document.getElementById('selFileName').textContent = '';
+  document.getElementById('tmdbQuery').value = '';
+  document.getElementById('posterGrid').innerHTML = '';
+  document.getElementById('moviePreview').innerHTML = '';
+  document.getElementById('vjCustom').value = '';
+  document.getElementById('is18Plus').checked = false;
+  selectedMovie = null;
+  ['s1n','s2n','s3n'].forEach((id,i) => { document.getElementById(id).textContent=i+1; document.getElementById(id).style.background='var(--gold)'; });
+
+  toast(`Queued ${label}`, 'info');
+  _movieProcessQueue();
+}
+
+function _movieProcessQueue() {
+  while (_movieActiveCount < _movieMaxConcurrent && _moviePendingQueue.length > 0) {
+    const item = _moviePendingQueue.shift();
+    _movieActiveCount++;
+    _movieUploadItem(item).finally(() => {
+      _movieActiveCount--;
+      _movieProcessQueue();
     });
-    const data = await res.json();
+  }
+}
+
+async function _movieUploadItem({ movieData, fileName, file, ui }) {
+  const setStatus = (text, color) => { ui.statusEl.textContent = text; if (color) ui.statusEl.style.color = color; };
+  const totalMB = (file.size / 1024 / 1024).toFixed(1);
+  let partLabel = '';
+  const setPct = (loaded) => {
+    const pct = Math.round(loaded / file.size * 100);
+    ui.fillEl.style.width = pct + '%';
+    const loadedMB = (loaded / 1024 / 1024).toFixed(1);
+    ui.pctEl.textContent = `${pct}% — ${loadedMB} MB / ${totalMB} MB${partLabel}`;
+  };
+  try {
+    setStatus('Uploading...', 'var(--gold)');
+    const CHUNK_SIZE = 20 * 1024 * 1024;
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+    if (file.size <= CHUNK_SIZE) {
+      const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
+        headers: { 'X-Session-Token': sessionToken }
+      });
+      const b2 = await urlRes.json();
+      if (!b2.uploadUrl) throw new Error('Could not get upload URL from server');
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', b2.uploadUrl);
+        xhr.setRequestHeader('Authorization', b2.authorizationToken);
+        xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+        xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+        xhr.upload.onprogress = e => { if (e.lengthComputable) setPct(e.loaded); };
+        xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText || 'no response body'}`));
+        xhr.onerror = () => reject(new Error(`Network error during upload (status=${xhr.status})`));
+        xhr.send(file);
+      });
+    } else {
+      const startRes = await fetch(`${ADMIN_API}/b2-start-large-file`, {
+        method: 'POST',
+        headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName })
+      });
+      const startData = await startRes.json();
+      if (!startRes.ok) throw new Error(startData.error || 'Failed to start upload');
+      const { fileId, authorizationToken, apiUrl } = startData;
+      const partSha1Array = [];
+      let uploadedBytes = 0;
+      for (let i = 0; i < totalChunks; i++) {
+        const partNumber = i + 1;
+        partLabel = ` • Part ${partNumber}/${totalChunks}`;
+        const chunk = file.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, file.size));
+        let partUrl, partAuth;
+        for (let attempt = 0; attempt < 8; attempt++) {
+          try {
+            const partUrlRes = await fetch(`${ADMIN_API}/b2-upload-part-url`, {
+              method: 'POST',
+              headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileId, authorizationToken, apiUrl })
+            });
+            const partUrlData = await partUrlRes.json();
+            partUrl = partUrlData.uploadUrl; partAuth = partUrlData.authorizationToken;
+            break;
+          } catch(e) { if (attempt === 7) throw e; await new Promise(r => setTimeout(r, 1500 * (attempt + 1))); }
+        }
+        let sha1;
+        for (let attempt = 0; attempt < 8; attempt++) {
+          try {
+            sha1 = await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', partUrl);
+              xhr.setRequestHeader('Authorization', partAuth);
+              xhr.setRequestHeader('X-Bz-Part-Number', partNumber);
+              xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+              xhr.upload.onprogress = e => { if (e.lengthComputable) setPct(uploadedBytes + e.loaded); };
+              xhr.onload = () => {
+                if (xhr.status === 200) {
+                  const resp = JSON.parse(xhr.responseText);
+                  resolve((resp.contentSha1 || '').replace('unverified:', ''));
+                } else reject(new Error('Part failed: ' + xhr.status));
+              };
+              xhr.onerror = () => reject(new Error('Network error on part ' + partNumber));
+              xhr.send(chunk);
+            });
+            break;
+          } catch(e) { if (attempt === 7) throw e; await new Promise(r => setTimeout(r, 2000 * (attempt + 1))); }
+        }
+        partSha1Array.push(sha1);
+        uploadedBytes += chunk.size;
+        setPct(uploadedBytes);
+      }
+      const finishRes = await fetch(`${ADMIN_API}/b2-finish-large-file`, {
+        method: 'POST',
+        headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, partSha1Array, authorizationToken, apiUrl })
+      });
+      const finishData = await finishRes.json();
+      if (!finishRes.ok) throw new Error(finishData.error || 'Failed to finish upload');
+    }
+
+    setPct(file.size);
+    setStatus('Saving to catalog...', 'var(--gold)');
+    const data = await _movieWithCatalogLock(async () => {
+      const res = await fetch(`${ADMIN_API}/add-movie`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+        body: JSON.stringify({ ...movieData, fileName }),
+      });
+      return res.json();
+    });
     if (data.success) {
-      document.getElementById('s3n').style.background = 'var(--green)';
-      showStatus('addStatus', `🎉 "${selectedMovie.title}" is now live on Picha+!`, 'success');
-      btn.innerHTML = '🎉 Added!';
-      toast('Movie added!', 'success');
-      setTimeout(resetForm, 3000);
-    } else throw new Error(data.error);
-  } catch(e) {
-    showStatus('addStatus', '❌ '+e.message, 'error');
-    btn.disabled = false; btn.innerHTML = '✅ Add Movie to Picha+';
+      setStatus('✅ Added', '#4ade80');
+      toast(`"${movieData.title}" added!`, 'success');
+    } else throw new Error(data.error || 'Failed to add movie');
+  } catch (e) {
+    setStatus('❌ ' + e.message, '#f87171');
+    toast('Failed: ' + e.message, 'error');
   }
 }
 
@@ -2147,7 +2317,7 @@ async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, is18Plus, f
         partLabel = ` • Part ${partNumber}/${totalChunks}`;
         const chunk = file.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, file.size));
         let partUrl, partAuth;
-        for (let attempt = 0; attempt < 3; attempt++) {
+        for (let attempt = 0; attempt < 8; attempt++) {
           try {
             const partUrlRes = await fetch(`${ADMIN_API}/b2-upload-part-url`, {
               method: 'POST',
@@ -2157,10 +2327,10 @@ async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, is18Plus, f
             const partUrlData = await partUrlRes.json();
             partUrl = partUrlData.uploadUrl; partAuth = partUrlData.authorizationToken;
             break;
-          } catch(e) { if (attempt === 2) throw e; await new Promise(r => setTimeout(r, 2000)); }
+          } catch(e) { if (attempt === 7) throw e; await new Promise(r => setTimeout(r, 1500 * (attempt + 1))); }
         }
         let sha1;
-        for (let attempt = 0; attempt < 3; attempt++) {
+        for (let attempt = 0; attempt < 8; attempt++) {
           try {
             sha1 = await new Promise((resolve, reject) => {
               const xhr = new XMLHttpRequest();
@@ -2179,7 +2349,7 @@ async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, is18Plus, f
               xhr.send(chunk);
             });
             break;
-          } catch(e) { if (attempt === 2) throw e; await new Promise(r => setTimeout(r, 3000)); }
+          } catch(e) { if (attempt === 7) throw e; await new Promise(r => setTimeout(r, 2000 * (attempt + 1))); }
         }
         partSha1Array.push(sha1);
         uploadedBytes += chunk.size;
