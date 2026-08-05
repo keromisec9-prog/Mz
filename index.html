@@ -157,7 +157,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <!-- ADD MOVIE -->
     <div class="tab-content active" id="tab-add">
       <div class="step">
-        <div class="step-header"><div class="step-num" id="s1n">1</div><div class="step-title">Upload Video to Backblaze</div></div>
+        <div class="step-header"><div class="step-num" id="s1n">1</div><div class="step-title">Select Video File</div></div>
         <label>Save as (file path)</label>
         <input type="text" id="fileNameInput" placeholder="movies/movie-title.mp4"/>
         <label>Search & select file</label>
@@ -168,12 +168,13 @@ input[type=text]::placeholder { color: var(--gray2); }
         <input type="file" id="fileInput" accept="video/*" style="display:none;"/>
         <div id="fileSearchHint" style="font-size:0.75rem;color:var(--gray2);margin-bottom:0.8rem;display:none;">Tip: tap Browse then use the 🔍 search in your file picker</div>
         <div id="selFileName" class="file-name"></div>
-        <div class="progress-wrap" id="progressWrap">
+        <div class="progress-wrap" id="progressWrap" style="display:none;">
           <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
           <div class="progress-label" id="progressLabel">0%</div>
         </div>
-        <div class="status" id="uploadStatus"></div>
-        <button class="btn btn-gold btn-full" style="margin-top:0.8rem;" id="uploadBtn" onclick="uploadVideo()">Upload to Backblaze</button>
+        <div class="status" id="uploadStatus" style="display:none;"></div>
+        <button class="btn btn-gold btn-full" style="margin-top:0.8rem;display:none;" id="uploadBtn" onclick="uploadVideo()">Upload to Backblaze</button>
+        <div style="font-size:0.75rem;color:var(--gray2);margin-top:0.6rem;">✅ File selected — upload happens automatically when you tap "Add Movie to Picha+" below.</div>
       </div>
       <div class="step">
         <div class="step-header"><div class="step-num" id="s2n">2</div><div class="step-title">Find Movie Info</div></div>
