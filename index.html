@@ -995,15 +995,18 @@ async function addShort() {
       if (!b2.uploadUrl) throw new Error('Could not get upload URL from server');
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open('PUT', b2.uploadUrl);
-        if (b2.headers) Object.entries(b2.headers).forEach(([k,v]) => xhr.setRequestHeader(k, v));
+        xhr.open('POST', b2.uploadUrl);
+        xhr.setRequestHeader('Authorization', b2.authorizationToken);
+        xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+        xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             const pct = Math.round(e.loaded / e.total * 100);
             showStatus('addShortStatus', `⏳ Uploading video... ${pct}%`, 'info');
           }
         };
-        xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`));
+        xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText || 'no response body'}`));
         xhr.onerror = () => reject(new Error('Network error during upload'));
         xhr.send(file);
       });
