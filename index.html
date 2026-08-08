@@ -361,7 +361,7 @@ input[type=text]::placeholder { color: var(--gray2); }
         </div>
         <div id="shortFeatureFields" style="display:none;">
           <label>Video File</label>
-          <input type="file" id="shortVideoFile" accept="video/*" style="display:none;" onchange="document.getElementById('shortVideoFileName').textContent=this.files[0]?.name||''"/>
+          <input type="file" id="shortVideoFile" accept="video/*" style="display:none;" onchange="handleShortVideoSelect(this)"/>
           <button class="btn" onclick="document.getElementById('shortVideoFile').click()" style="width:100%;margin-bottom:0.3rem;">📁 Choose Video</button>
           <div id="shortVideoFileName" style="font-size:0.72rem;color:#888;margin-bottom:0.5rem;"></div>
           <label>Duration (seconds)</label>
@@ -917,8 +917,7 @@ async function selectShortResult(idx, el) {
 }
 
 function confirmManualShort() {
-  const title = document.getElementById('manualShortTitle').value.trim();
-  if (!title) { showStatus('manualShortStatus', '❌ Title is required', 'error'); return; }
+  const title = document.getElementById('manualShortTitle').value.trim() || 'Untitled Short';
   selectedShort = {
     tmdbId: null, title,
     poster: shortCustomPosterUrl || '',
@@ -928,7 +927,7 @@ function confirmManualShort() {
     overview: document.getElementById('manualShortOverview').value.trim() || '',
     genreId: document.getElementById('manualShortGenre').value,
   };
-  showStatus('manualShortStatus', `✅ "${title}" ready to add. Select VJ below.`, 'success');
+  showStatus('manualShortStatus', `✅ Ready to add. Select VJ below.`, 'success');
 }
 
 function selectShortVJ(vj, el) {
@@ -957,6 +956,20 @@ async function uploadCustomPoster_short() {
     if (selectedShort) selectedShort.poster = shortCustomPosterUrl;
     document.getElementById('shortCustomPosterStatus').textContent = '✅ Uploaded';
   } catch(e) { document.getElementById('shortCustomPosterStatus').textContent = '❌ ' + e.message; }
+}
+
+function handleShortVideoSelect(input) {
+  const file = input.files[0];
+  document.getElementById('shortVideoFileName').textContent = file?.name || '';
+  if (!file) return;
+  const tempVideo = document.createElement('video');
+  tempVideo.preload = 'metadata';
+  tempVideo.onloadedmetadata = () => {
+    URL.revokeObjectURL(tempVideo.src);
+    const secs = Math.round(tempVideo.duration) || 0;
+    document.getElementById('shortDurationSecs').value = secs;
+  };
+  tempVideo.src = URL.createObjectURL(file);
 }
 
 async function addShort() {
