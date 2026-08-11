@@ -1177,6 +1177,8 @@ async function _shortUploadFile(file, body, ui, setStatus) {
   body.videoUrl = `https://f003.backblazeb2.com/file/picha-plus-videos/` + fileName;
 }
 
+let _shortsCache = {};
+
 async function loadShorts() {
   const el = document.getElementById('shortsList');
   el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
@@ -1184,6 +1186,7 @@ async function loadShorts() {
     const res = await fetch(`${ADMIN_API}/shorts`, { headers: { 'X-Session-Token': sessionToken } });
     const data = await res.json();
     const shorts = data.shorts || {};
+    _shortsCache = shorts;
     const keys = Object.keys(shorts);
     if (!keys.length) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No short dramas yet.</div>'; return; }
     el.innerHTML = keys.map(k => {
@@ -1194,10 +1197,120 @@ async function loadShorts() {
           <div style="font-weight:700;">${s.title||''}</div>
           <div style="font-size:0.75rem;color:var(--gray);">${s.contentType==='series'?'📺 Series':'🎬 Feature'} · ${s.vj||''}</div>
         </div>
-        ${s.contentType==='series' ? `<button class="btn btn-outline btn-sm" onclick="openAddShortEpisode('${s.tmdbId}','${esc(s.title||'')}')">➕ Episode</button>` : ''}
+        <div style="display:flex;gap:0.4rem;align-items:flex-start;">
+          ${s.contentType==='series' ? `<button class="btn btn-outline btn-sm" onclick="openAddShortEpisode('${s.tmdbId}','${esc(s.title||'')}')">➕ Episode</button>` : ''}
+          <button class="btn btn-outline btn-sm" onclick="openEditShort('${k}')">✏️</button>
+          <button class="btn btn-outline btn-sm" onclick="deleteShort('${k}','${esc(s.title||'')}')">🗑️</button>
+        </div>
       </div>`;
     }).join('');
   } catch(e) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:red;">Failed to load: ' + e.message + '</div>'; }
+}
+
+function deleteShort(shortKey, title) {
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  (async () => {
+    try {
+      const res = await fetch(`${ADMIN_API}/delete-short`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+        body: JSON.stringify({ shortKey })
+      });
+      const data = await res.json();
+      if (data.success) { toast(`"${title}" deleted`, 'success'); loadShorts(); }
+      else toast('Delete failed: ' + (data.error || 'unknown error'), 'error');
+    } catch(e) { toast('Delete failed: ' + e.message, 'error'); }
+  })();
+}
+
+function openEditShort(shortKey) {
+  const s = _shortsCache[shortKey];
+  if (!s) return toast('Short not found', 'error');
+  const isFeature = s.contentType === 'feature';
+  const overlay = document.createElement('div');
+  overlay.id = 'editShortOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.innerHTML = `
+    <div style="background:#141414;border:1px solid #333;border-radius:8px;padding:1.2rem;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;">
+      <div style="font-weight:700;margin-bottom:0.8rem;">Edit: ${esc(s.title||'')}</div>
+      <label style="font-size:0.75rem;color:var(--gray);">Title</label>
+      <input id="es_title" value="${esc(s.title||'')}" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">
+      <label style="font-size:0.75rem;color:var(--gray);">Poster URL</label>
+      <input id="es_poster" value="${esc(s.poster||'')}" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">
+      <label style="font-size:0.75rem;color:var(--gray);">Backdrop URL</label>
+      <input id="es_backdrop" value="${esc(s.backdrop||'')}" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">
+      <div style="display:flex;gap:0.5rem;">
+        <div style="flex:1;">
+          <label style="font-size:0.75rem;color:var(--gray);">Year</label>
+          <input id="es_year" value="${esc(s.year||'')}" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:0.75rem;color:var(--gray);">Rating</label>
+          <input id="es_rating" value="${s.rating||0}" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">
+        </div>
+      </div>
+      <label style="font-size:0.75rem;color:var(--gray);">Overview</label>
+      <textarea id="es_overview" rows="3" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">${esc(s.overview||'')}</textarea>
+      <label style="font-size:0.75rem;color:var(--gray);">VJ</label>
+      <input id="es_vj" value="${esc(s.vj||'')}" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">
+      ${isFeature ? `
+        <label style="font-size:0.75rem;color:var(--gray);">Video URL</label>
+        <input id="es_videoUrl" value="${esc(s.videoUrl||'')}" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">
+        <div style="display:flex;gap:0.5rem;">
+          <div style="flex:1;">
+            <label style="font-size:0.75rem;color:var(--gray);">Duration (secs)</label>
+            <input id="es_durationSecs" value="${s.durationSecs||0}" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:0.75rem;color:var(--gray);">Paywall %</label>
+            <input id="es_paywallThresholdPct" value="${s.paywallThresholdPct||25}" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">
+          </div>
+        </div>
+      ` : `
+        <label style="font-size:0.75rem;color:var(--gray);">Free Episodes</label>
+        <input id="es_paywallFreeEpisodes" value="${s.paywallFreeEpisodes||3}" style="width:100%;margin-bottom:0.6rem;padding:0.5rem;background:#1e1e1e;border:1px solid #333;border-radius:4px;color:#fff;">
+      `}
+      <div style="display:flex;gap:0.5rem;margin-top:0.6rem;">
+        <button class="btn btn-outline btn-sm" style="flex:1;" onclick="closeEditShort()">Cancel</button>
+        <button class="btn btn-sm" style="flex:1;background:var(--gold);" onclick="saveEditShort('${shortKey}', ${isFeature})">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function closeEditShort() {
+  const overlay = document.getElementById('editShortOverlay');
+  if (overlay) overlay.remove();
+}
+
+async function saveEditShort(shortKey, isFeature) {
+  const body = {
+    shortKey,
+    title: document.getElementById('es_title').value,
+    poster: document.getElementById('es_poster').value,
+    backdrop: document.getElementById('es_backdrop').value,
+    year: document.getElementById('es_year').value,
+    rating: parseFloat(document.getElementById('es_rating').value) || 0,
+    overview: document.getElementById('es_overview').value,
+    vj: document.getElementById('es_vj').value
+  };
+  if (isFeature) {
+    body.videoUrl = document.getElementById('es_videoUrl').value;
+    body.durationSecs = parseInt(document.getElementById('es_durationSecs').value) || 0;
+    body.paywallThresholdPct = parseInt(document.getElementById('es_paywallThresholdPct').value) || 25;
+  } else {
+    body.paywallFreeEpisodes = parseInt(document.getElementById('es_paywallFreeEpisodes').value) || 3;
+  }
+  try {
+    const res = await fetch(`${ADMIN_API}/edit-short`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) { toast('Saved', 'success'); closeEditShort(); loadShorts(); }
+    else toast('Save failed: ' + (data.error || 'unknown error'), 'error');
+  } catch(e) { toast('Save failed: ' + e.message, 'error'); }
 }
 
 
