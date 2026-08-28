@@ -1788,6 +1788,7 @@ async function loadAnalytics() {
     const maxMovies = Math.max(...(analytics.topMovies || []).map(r => r.plays), 1);
     const maxVJs = Math.max(...(analytics.topVJs || []).map(r => r.count), 1);
     const maxGenres = Math.max(...(analytics.topGenres || []).map(r => r.count), 1);
+    const maxRequests = Math.max(...(analytics.topRequests || []).map(r => r.count), 1);
 
     container.innerHTML = `
       <div class="step" style="margin-bottom:1rem;">
@@ -1805,6 +1806,10 @@ async function loadAnalytics() {
       <div class="step" style="margin-bottom:1rem;">
         <div class="step-header"><div class="step-title">🎭 Top Genres</div></div>
         ${(analytics.topGenres || []).length ? analytics.topGenres.map(r => _analyticsBarRow(TMDB_GENRE_MAP[r.genreId] || `Genre ${r.genreId}`, r.count, maxGenres)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No genre data for this period.</div>'}
+      </div>
+      <div class="step" style="margin-bottom:1rem;">
+        <div class="step-header"><div class="step-title">🔔 Most Requested</div></div>
+        ${(analytics.topRequests || []).length ? analytics.topRequests.map(r => _analyticsBarRow(resolveTitle(r.tmdbId) + (r.mediaType === 'series' ? ' 📺' : ' 🎬'), r.count, maxRequests)).join('') : '<div style="color:var(--gray);font-size:0.8rem;">No requests for this period.</div>'}
       </div>
       <div style="border-top:1px solid #333;margin:1.5rem 0;padding-top:0.3rem;">
         <div style="font-size:0.7rem;font-weight:700;color:var(--gold);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.8rem;">Precision Metrics — from actual watch progress, not raw event counts</div>
