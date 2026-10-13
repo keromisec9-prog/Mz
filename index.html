@@ -2220,6 +2220,112 @@ function _vjResizeSquare(file, size) {
   });
 }
 
+const VJ_CROP_RATIO = 0.82; // height / width, same shape as the app's VJ cards
+const VJ_CROP_OUT_W = 640;
+
+function _vjCropDialog(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read image')); };
+    img.onload = () => {
+      const W = img.naturalWidth, H = img.naturalHeight;
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#000;display:flex;flex-direction:column;touch-action:none;user-select:none;-webkit-user-select:none;';
+      ov.innerHTML =
+        '<div id="vcrStage" style="flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:none;">' +
+          '<div id="vcrFrame" style="position:relative;">' +
+            '<img id="vcrImg" alt="" style="position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;pointer-events:none;">' +
+            '<div style="position:absolute;inset:0;box-shadow:0 0 0 100vmax rgba(0,0,0,0.62);border:1px solid rgba(255,255,255,0.85);pointer-events:none;"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="padding:10px 18px 18px;background:#0a0a0a;">' +
+          '<input id="vcrZoom" type="range" min="1" max="6" step="0.01" value="1" style="width:100%;accent-color:#e5b73b;">' +
+          '<div style="display:flex;justify-content:space-between;margin-top:10px;">' +
+            '<button id="vcrCancel" style="background:none;border:none;color:#e5b73b;font-weight:700;font-size:1rem;padding:8px 14px;">Cancel</button>' +
+            '<button id="vcrDone" style="background:none;border:none;color:#e5b73b;font-weight:700;font-size:1rem;padding:8px 14px;">Done</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+
+      const stage = ov.querySelector('#vcrStage');
+      const frame = ov.querySelector('#vcrFrame');
+      const im = ov.querySelector('#vcrImg');
+      const zoom = ov.querySelector('#vcrZoom');
+      im.src = url; im.style.width = W + 'px'; im.style.height = H + 'px';
+
+      let fw = 0, fh = 0, minS = 1, s = 1, x = 0, y = 0;
+      function draw() {
+        s = Math.max(minS, Math.min(minS * 6, s));
+        x = Math.min(0, Math.max(fw - W * s, x));
+        y = Math.min(0, Math.max(fh - H * s, y));
+        im.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + s + ')';
+        zoom.value = s / minS;
+      }
+      function layout() {
+        const sw = stage.clientWidth, sh = stage.clientHeight;
+        fw = Math.max(120, Math.min(sw - 24, (sh - 24) / VJ_CROP_RATIO));
+        fh = fw * VJ_CROP_RATIO;
+        frame.style.width = fw + 'px'; frame.style.height = fh + 'px';
+        minS = Math.max(fw / W, fh / H);
+        s = minS; x = (fw - W * s) / 2; y = (fh - H * s) / 3; // start slightly high so faces stay in view
+        draw();
+      }
+      layout();
+
+      const ptrs = new Map();
+      let lastDist = 0, lastMid = null;
+      stage.addEventListener('pointerdown', e => {
+        try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+        ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      });
+      stage.addEventListener('pointermove', e => {
+        const p = ptrs.get(e.pointerId);
+        if (!p) return;
+        const px = p.x, py = p.y;
+        p.x = e.clientX; p.y = e.clientY;
+        if (ptrs.size === 1) {
+          x += p.x - px; y += p.y - py; draw();
+        } else if (ptrs.size === 2) {
+          const [a, b] = Array.from(ptrs.values());
+          const dist = Math.hypot(a.x - b.x, a.y - b.y);
+          const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+          if (lastDist && lastMid) {
+            const r = frame.getBoundingClientRect();
+            const mx = mid.x - r.left, my = mid.y - r.top;
+            const ns = Math.max(minS, Math.min(minS * 6, s * (dist / lastDist)));
+            const ff = ns / s;
+            x = mx - (mx - x) * ff + (mid.x - lastMid.x);
+            y = my - (my - y) * ff + (mid.y - lastMid.y);
+            s = ns; draw();
+          }
+          lastDist = dist; lastMid = mid;
+        }
+      });
+      const up = e => { ptrs.delete(e.pointerId); lastDist = 0; lastMid = null; };
+      stage.addEventListener('pointerup', up);
+      stage.addEventListener('pointercancel', up);
+
+      zoom.addEventListener('input', () => {
+        const ns = minS * parseFloat(zoom.value);
+        const cx = fw / 2, cy = fh / 2, ff = ns / s;
+        x = cx - (cx - x) * ff; y = cy - (cy - y) * ff; s = ns; draw();
+      });
+
+      const close = () => { URL.revokeObjectURL(url); ov.remove(); };
+      ov.querySelector('#vcrCancel').onclick = () => { close(); resolve(null); };
+      ov.querySelector('#vcrDone').onclick = () => {
+        const OW = VJ_CROP_OUT_W, OH = Math.round(OW * VJ_CROP_RATIO);
+        const c = document.createElement('canvas');
+        c.width = OW; c.height = OH;
+        c.getContext('2d').drawImage(img, -x / s, -y / s, fw / s, fh / s, 0, 0, OW, OH);
+        c.toBlob(b => { close(); b ? resolve(b) : reject(new Error('Resize failed')); }, 'image/jpeg', 0.85);
+      };
+    };
+    img.src = url;
+  });
+}
+
 function pickVJPhoto(i) {
   const name = _vjProfNames[i];
   const input = document.createElement('input');
@@ -2227,10 +2333,12 @@ function pickVJPhoto(i) {
   input.onchange = async () => {
     const file = input.files[0];
     if (!file) return;
+    let blob;
+    try { blob = await _vjCropDialog(file); } catch (e) { toast('Failed: ' + e.message, 'error'); return; }
+    if (!blob) return;
     const btn = document.getElementById('vjBtn_' + i);
     if (btn) { btn.disabled = true; btn.textContent = 'Uploading...'; }
     try {
-      const blob = await _vjResizeSquare(file, 400);
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const fileName = 'vjs/' + slug + '_' + Date.now() + '.jpg';
       const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, { headers: { 'X-Session-Token': sessionToken } });
