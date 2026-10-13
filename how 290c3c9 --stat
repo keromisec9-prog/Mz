@@ -1,0 +1,20 @@
+[33m9a55690[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Sanitize series ID in auto-generated episode file path
+[33m58ce0fd[m Fix delete for local series - use _key instead of tmdbId
+[33mfd8c2d6[m Fix custom poster URL to use B2 CDN directly
+[33m107ab73[m Add manual series entry for local Ugandan productions
+[33m0de7106[m Fix B2 auth token key for custom poster upload
+[33m2700250[m Add custom poster upload for movies and series (collapsed advanced option)
+[33m91fbffb[m Add custom poster upload with Cloudflare CDN delivery
+[33m56635bd[m Multipart upload for episode videos too
+[33mdea10dd[m Strip unverified: prefix from B2 part SHA1 before finish
+[33mf912d46[m Fix multipart SHA1 handling for b2_finish_large_file
+[33mc0ab1ef[m Multipart upload for large files via B2 large file API
+[33m290c3c9[m Auto-retry upload up to 5 times with fresh B2 URL on network error
+[33m6a59161[m Use hash fragment for OAuth session to survive cross-origin redirects
+[33mb26c87b[m Clear expired session token on 401/403, show clean sign in
+[33m5411f82[m Debug: show error details on connect failure
+[33mc5a3a29[m Fix episode add - use seriesKey instead of tmdbId
+[33m78d8524[m Update
+[33m8621f9f[m Update
+[33m2477ba8[m Update
+[33m50834df[m Update

@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Picha+ Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0a; --bg2: #141414; --bg3: #1e1e1e;
+  --gold: #e5b93c; --gold2: #f0cd70;
+  --white: #fff; --gray: #888; --gray2: #444;
+  --red: #e53935; --green: #43a047;
+  --border: rgba(255,255,255,0.08);
+}
+body { background: var(--bg); color: var(--white); font-family: 'Inter', sans-serif; min-height: 100vh; padding-bottom: 4rem; }
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+.logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; }
+.logo span { color: var(--gold); }
+.nav-badge { background: var(--gold); color: #000; font-size: 0.6rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 100px; margin-left: 0.4rem; }
+.nav-right { display: flex; align-items: center; gap: 0.5rem; }
+.nav-user { font-size: 0.78rem; color: var(--gray); }
+.btn-signout { background: transparent; border: 1px solid rgba(255,255,255,0.12); color: #666; font-size: 0.72rem; padding: 0.3rem 0.7rem; border-radius: 100px; cursor: pointer; font-family: 'Inter', sans-serif; display: none; }
+.btn-signout:hover { color: var(--red); border-color: var(--red); }
+.tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg2); position: sticky; top: 52px; z-index: 99; overflow-x: auto; }
+.tab { flex-shrink: 0; padding: 0.75rem 0.9rem; text-align: center; font-size: 0.78rem; font-weight: 600; color: var(--gray); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+.tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+.main { max-width: 600px; margin: 0 auto; padding: 1.2rem 1rem; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+#gate { text-align: center; padding: 4rem 1rem; }
+.btn-google { display: inline-flex; align-items: center; gap: 0.7rem; background: var(--white); color: #111; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; border: none; }
+.btn-google svg { width: 20px; height: 20px; }
+.step { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; margin-bottom: 1rem; }
+.step-header { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1rem; }
+.step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--gold); color: #000; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.3s; }
+.step-title { font-weight: 600; font-size: 0.9rem; }
+.upload-zone { border: 2px dashed var(--gray2); border-radius: 8px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+.upload-zone:hover { border-color: var(--gold); background: rgba(229,185,60,0.04); }
+.upload-zone p { font-size: 0.82rem; color: var(--gray); margin-top: 0.3rem; }
+.upload-zone strong { color: var(--white); font-size: 0.88rem; }
+.file-name { font-size: 0.78rem; color: var(--gold); margin-top: 0.5rem; word-break: break-all; }
+.progress-wrap { margin-top: 0.8rem; display: none; }
+.progress-track { background: var(--bg3); border-radius: 100px; height: 5px; overflow: hidden; margin-bottom: 0.4rem; }
+.progress-fill { height: 100%; background: var(--gold); border-radius: 100px; width: 0%; transition: width 0.2s; }
+.progress-label { font-size: 0.75rem; color: var(--gray); }
+label { display: block; font-size: 0.72rem; color: var(--gray); margin-bottom: 0.35rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+input[type=text] { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 0.65rem 0.85rem; color: var(--white); font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none; transition: border 0.2s; margin-bottom: 0.8rem; }
+input[type=text]:focus { border-color: var(--gold); }
+input[type=text]::placeholder { color: var(--gray2); }
+.btn { padding: 0.65rem 1.1rem; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 0.83rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+.btn-gold { background: var(--gold); color: #000; }
+.btn-gold:hover { background: var(--gold2); }
+.btn-gold:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-full { width: 100%; }
+.btn-lg { padding: 0.85rem; font-size: 0.9rem; }
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.75rem; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-outline { background: transparent; color: var(--white); border: 1px solid var(--border); }
+.search-row { display: flex; gap: 0.5rem; margin-bottom: 0; }
+.search-row input { margin-bottom: 0; flex: 1; }
+.poster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.8rem; }
+.poster-opt { position: relative; aspect-ratio: 2/3; border-radius: 6px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border 0.15s; }
+.poster-opt:hover { border-color: var(--gold); }
+.poster-opt.sel { border-color: var(--gold); }
+.poster-opt.sel::after { content: '✓'; position: absolute; top: 0.3rem; right: 0.3rem; background: var(--gold); color: #000; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; }
+.poster-opt img { width: 100%; height: 100%; object-fit: cover; }
+.poster-label { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 0.6rem 0.3rem 0.3rem; font-size: 0.6rem; line-height: 1.3; }
+.movie-preview { display: flex; gap: 0.8rem; background: var(--bg3); border-radius: 8px; padding: 0.8rem; margin-top: 0.8rem; }
+.movie-preview img { width: 60px; height: 90px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.preview-info h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem; }
+.preview-info p { font-size: 0.72rem; color: var(--gray); line-height: 1.5; }
+.tag { background: rgba(229,185,60,0.15); color: var(--gold); font-size: 0.6rem; padding: 0.12rem 0.4rem; border-radius: 100px; font-weight: 600; display: inline-block; margin-right: 0.3rem; margin-bottom: 0.3rem; }
+.vj-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; margin-bottom: 0.8rem; }
+.vj-pill { background: var(--bg3); border: 1px solid var(--border); border-radius: 100px; padding: 0.35rem 0.8rem; font-size: 0.75rem; cursor: pointer; transition: all 0.15s; color: var(--gray); }
+.vj-pill.active { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 600; }
+.status { padding: 0.7rem 0.9rem; border-radius: 6px; font-size: 0.8rem; margin-top: 0.7rem; display: none; }
+.status.success { background: rgba(67,160,71,0.15); border: 1px solid rgba(67,160,71,0.3); color: #81c784; }
+.status.error { background: rgba(229,57,53,0.15); border: 1px solid rgba(229,57,53,0.3); color: #ef9a9a; }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.8rem; }
+.card-info { flex: 1; min-width: 0; }
+.card-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-meta { font-size: 0.7rem; color: var(--gray); margin-top: 0.15rem; }
+.pill { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 100px; display: inline-block; margin-top: 0.2rem; }
+.pill-free { background: rgba(136,136,136,0.2); color: var(--gray); }
+.pill-premium { background: rgba(229,185,60,0.2); color: var(--gold); }
+.pill-super { background: rgba(255,100,0,0.2); color: #ff6400; }
+.pill-admin { background: rgba(100,160,255,0.2); color: #64a0ff; }
+/* SITE IFRAME */
+.site-frame-wrap { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: #000; margin-top: 0.5rem; }
+.site-frame-toolbar { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem; background: var(--bg3); border-bottom: 1px solid var(--border); }
+.site-frame-url { flex: 1; font-size: 0.72rem; color: var(--gray); }
+.site-frame-wrap iframe { width: 100%; height: 70vh; border: none; display: block; }
+/* SPIN */
+.spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(0,0,0,0.2); border-top-color: #000; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: #222; color: var(--white); padding: 0.65rem 1.3rem; border-radius: 100px; font-size: 0.8rem; z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,0.4); white-space: nowrap; }
+.toast.success { background: var(--green); }
+.toast.error { background: var(--red); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; display: none; align-items: center; justify-content: center; padding: 1rem; }
+.modal-overlay.active { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 340px; }
+.modal h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+.modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+.divider { height: 1px; background: var(--border); margin: 0.8rem 0; }
+</style>
+<style>
+#africanCinemaSlider::before {
+  content: ''; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px;
+  background: #fff; border-radius: 50%; transition: 0.2s;
+}
+#africanCinemaToggle:checked + #africanCinemaSlider { background: #e5b93c; }
+#africanCinemaToggle:checked + #africanCinemaSlider::before { transform: translateX(22px); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="logo">PICHA<span>+</span><span class="nav-badge">ADMIN</span></div>
+  <div class="nav-right">
+    <span class="nav-user" id="navUser"></span>
+    <button class="btn-signout" id="signOutBtn" onclick="signOut()">Sign out</button>
+  </div>
+</nav>
+
+<!-- GATE -->
+<div id="gate">
+  <div style="font-size:3rem;margin-bottom:1rem;">🎬</div>
+  <h2 style="font-family:'Bebas Neue',sans-serif;font-size:2rem;margin-bottom:0.5rem;">Admin Panel</h2>
+  <p style="color:var(--gray);font-size:0.85rem;margin-bottom:2rem;">Sign in with an authorized Google account.</p>
+  <button class="btn-google" onclick="signIn()">
+    <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+    Sign in with Google
+  </button>
+  <div id="gateErr" style="color:#ef9a9a;font-size:0.8rem;margin-top:1rem;display:none;"></div>
+</div>
+
+<!-- PANEL -->
+<div id="panel" style="display:none;">
+  <div class="tabs" id="tabBar">
+    <div class="tab active" onclick="switchTab('add')">➕ Add Movie</div>
+    <div class="tab" onclick="switchTab('movies')">🎬 Movies</div>
+    <div class="tab" onclick="switchTab('addseries')">📺 Add Series</div>
+    <div class="tab" onclick="switchTab('series')">🎞 Series</div>
+    <div class="tab" onclick="switchTab('users')">👥 Users</div>
+    <div class="tab" id="adminsTab" style="display:none;" onclick="switchTab('admins')">🔑 Admins</div>
+    <div class="tab" onclick="switchTab('site')">🌐 Site</div>
+  </div>
+  <div class="main">
+
+    <!-- ADD MOVIE -->
+    <div class="tab-content active" id="tab-add">
+      <div class="step">
+        <div class="step-header"><div class="step-num" id="s1n">1</div><div class="step-title">Upload Video to Backblaze</div></div>
+        <label>Save as (file path)</label>
+        <input type="text" id="fileNameInput" placeholder="movies/movie-title.mp4"/>
+        <label>Search & select file</label>
+        <div class="search-row" style="margin-bottom:0.8rem;">
+          <input type="text" id="fileSearch" placeholder="Type to filter by name..." oninput="filterFiles(this.value)" style="margin-bottom:0;"/>
+          <button class="btn btn-gold" onclick="document.getElementById('fileInput').click()">Browse</button>
+        </div>
+        <input type="file" id="fileInput" accept="video/*" style="display:none;"/>
+        <div id="fileSearchHint" style="font-size:0.75rem;color:var(--gray2);margin-bottom:0.8rem;display:none;">Tip: tap Browse then use the 🔍 search in your file picker</div>
+        <div id="selFileName" class="file-name"></div>
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-label" id="progressLabel">0%</div>
+        </div>
+        <div class="status" id="uploadStatus"></div>
+        <button class="btn btn-gold btn-full" style="margin-top:0.8rem;" id="uploadBtn" onclick="uploadVideo()">Upload to Backblaze</button>
+      </div>
+      <div class="step">
+        <div class="step-header"><div class="step-num" id="s2n">2</div><div class="step-title">Find Movie Info</div></div>
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
+          <button class="btn" id="movieTmdbModeBtn" onclick="setMovieMode('tmdb')" style="font-size:0.75rem;flex:1;background:var(--gold);color:#000;">🔍 TMDB Search</button>
+          <button class="btn" id="movieManualModeBtn" onclick="setMovieMode('manual')" style="font-size:0.75rem;flex:1;">✏️ Manual Entry</button>
+        </div>
+        <div id="movieTmdbSection">
+        <div class="search-row">
+          <input type="text" id="tmdbQuery" placeholder="Search movie title..." onkeydown="if(event.key==='Enter')searchTMDB()" style="margin-bottom:0;"/>
+          <button class="btn btn-gold" id="searchBtn" onclick="searchTMDB()">Search</button>
+        </div>
+        <div class="poster-grid" id="posterGrid"></div>
+        <div id="moviePreview"></div>
+        <div class="status" id="tmdbStatus"></div>
+        </div>
+        <details style="margin-top:0.6rem;">
+          <summary style="font-size:0.75rem;color:#666;cursor:pointer;user-select:none;">⚙️ Custom Poster (optional)</summary>
+          <div style="margin-top:0.5rem;">
+            <div style="font-size:0.72rem;color:#888;margin-bottom:0.4rem;">Upload a custom poster image to override TMDB. Served via Cloudflare CDN.</div>
+            <input type="file" id="movieCustomPosterFile" accept="image/*" style="display:none;" onchange="previewCustomPoster_movie(this)"/>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+              <button class="btn" onclick="document.getElementById('movieCustomPosterFile').click()" style="font-size:0.75rem;padding:0.35rem 0.7rem;">📁 Choose Image</button>
+              <button class="btn btn-gold" id="movieCustomPosterUploadBtn" onclick="uploadCustomPoster_movie()" style="font-size:0.75rem;padding:0.35rem 0.7rem;display:none;">⬆️ Upload</button>
+              <span id="movieCustomPosterStatus" style="font-size:0.72rem;color:#888;"></span>
+            </div>
+            <img id="movieCustomPosterPreview" src="" style="display:none;width:70px;margin-top:0.4rem;border-radius:4px;"/>
+          </div>
+        </details>
+        <!-- Manual Entry -->
+        <div id="movieManualSection" style="display:none;">
+          <input type="text" id="manualMovieTitle" class="input" placeholder="Movie title *" style="margin-bottom:0.5rem;"/>
+          <input type="text" id="manualMovieYear" class="input" placeholder="Year (e.g. 2024)" style="margin-bottom:0.5rem;"/>
+          <textarea id="manualMovieOverview" class="input" placeholder="Description (optional)" rows="3" style="margin-bottom:0.5rem;resize:vertical;"></textarea>
+          <button class="btn btn-gold" onclick="confirmManualMovie()" style="width:100%;">✅ Use This Info</button>
+          <div class="status" id="manualMovieStatus"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header"><div class="step-num" id="s3n">3</div><div class="step-title">Select VJ & Add</div></div>
+        <label>VJ Name</label>
+        <div class="vj-row">
+          <div id="movieVjPills" style="display:flex;flex-wrap:wrap;gap:0.5rem;"></div>
+        </div>
+        <label>Custom VJ (optional)</label>
+        <input type="text" id="vjCustom" placeholder="Type a different VJ name..." oninput="if(this.value.trim()){document.querySelectorAll('#tab-add .vj-pill').forEach(p=>p.classList.remove('active'));selectedVJ=this.value.trim();}" onblur="registerNewVJ(this.value)"/>
+        <label style="margin-top:0.8rem;">Part (optional)</label>
+        <input type="text" id="moviePart" placeholder="e.g. Part 1, Part 2, Director's Cut..." style="margin-bottom:0.5rem;"/>
+        <label style="margin-top:0.8rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="isUgandan" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🌍 African Cinema</span></label>
+        <button class="btn btn-gold btn-full btn-lg" id="addBtn" onclick="addMovie()">✅ Add Movie to Picha+</button>
+        <div class="status" id="addStatus"></div>
+      </div>
+    </div>
+
+    <!-- MOVIES -->
+    <div class="tab-content" id="tab-movies">
+      <div id="moviesList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
+    </div>
+
+    <!-- ADD SERIES -->
+    <div class="tab-content" id="tab-addseries">
+      <div class="step">
+        <div class="step-header"><div class="step-num">1</div><div class="step-title">Find Series on TMDB</div></div>
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
+          <button class="btn" id="seriesTmdbModeBtn" onclick="setSeriesMode('tmdb')" style="font-size:0.75rem;flex:1;background:var(--gold);color:#000;">🔍 TMDB Search</button>
+          <button class="btn" id="seriesManualModeBtn" onclick="setSeriesMode('manual')" style="font-size:0.75rem;flex:1;">✏️ Manual Entry</button>
+        </div>
+        <!-- TMDB Search -->
+        <div id="seriesTmdbSection">
+          <div class="search-row">
+            <input type="text" id="seriesTmdbQuery" placeholder="Search TV show title..." onkeydown="if(event.key==='Enter')searchSeriesTMDB()" style="margin-bottom:0;"/>
+            <button class="btn btn-gold" onclick="searchSeriesTMDB()">Search</button>
+          </div>
+          <div class="poster-grid" id="seriesPosterGrid"></div>
+          <div id="seriesPreview"></div>
+          <div class="status" id="seriesTmdbStatus"></div>
+        </div>
+        <!-- Manual Entry -->
+        <div id="seriesManualSection" style="display:none;">
+          <input type="text" id="manualSeriesTitle" class="input" placeholder="Series title *" style="margin-bottom:0.5rem;"/>
+          <input type="text" id="manualSeriesYear" class="input" placeholder="Year (e.g. 2024)" style="margin-bottom:0.5rem;"/>
+          <textarea id="manualSeriesOverview" class="input" placeholder="Description (optional)" rows="3" style="margin-bottom:0.5rem;resize:vertical;"></textarea>
+          <input type="number" id="manualSeriesSeasons" class="input" placeholder="Number of seasons (default 1)" style="margin-bottom:0.5rem;" min="1"/>
+          <button class="btn btn-gold" onclick="confirmManualSeries()" style="width:100%;">✅ Use This Info</button>
+          <div class="status" id="manualSeriesStatus"></div>
+        </div>
+        <!-- Custom poster — advanced option, collapsed by default -->
+        <details style="margin-top:0.6rem;">
+          <summary style="font-size:0.75rem;color:#666;cursor:pointer;user-select:none;">⚙️ Custom Poster (optional)</summary>
+          <div style="margin-top:0.5rem;">
+            <div style="font-size:0.72rem;color:#888;margin-bottom:0.4rem;">Upload a custom poster image to override TMDB. Served via Cloudflare CDN.</div>
+            <input type="file" id="seriesCustomPosterFile" accept="image/*" style="display:none;" onchange="previewCustomPoster_series(this)"/>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+              <button class="btn" onclick="document.getElementById('seriesCustomPosterFile').click()" style="font-size:0.75rem;padding:0.35rem 0.7rem;">📁 Choose Image</button>
+              <button class="btn btn-gold" id="seriesCustomPosterUploadBtn" onclick="uploadCustomPoster_series()" style="font-size:0.75rem;padding:0.35rem 0.7rem;display:none;">⬆️ Upload</button>
+              <span id="seriesCustomPosterStatus" style="font-size:0.72rem;color:#888;"></span>
+            </div>
+            <img id="seriesCustomPosterPreview" src="" style="display:none;width:70px;margin-top:0.4rem;border-radius:4px;"/>
+          </div>
+        </details>
+      </div>
+      <div class="step">
+        <div class="step-header"><div class="step-num">2</div><div class="step-title">Select VJ & Add</div></div>
+        <label>VJ Name</label>
+        <div class="vj-row">
+          <div id="seriesVjPills" style="display:flex;flex-wrap:wrap;gap:0.5rem;"></div>
+        </div>
+        <label>Custom VJ (optional)</label>
+        <input type="text" id="seriesVjCustom" placeholder="Type a different VJ name..."
+          oninput="if(this.value.trim()){document.querySelectorAll('#tab-addseries .vj-pill').forEach(p=>p.classList.remove('active'));selectedSeriesVJ=this.value.trim();}" onblur="registerNewVJ(this.value)"/>
+        <label style="margin-top:0.8rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" id="isUgandanSeries" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;"/><span>🌍 African Cinema</span></label>
+        <button class="btn btn-gold btn-full btn-lg" id="addSeriesBtn" onclick="addSeries()">📺 Add Series to Picha+</button>
+        <div class="status" id="addSeriesStatus"></div>
+      </div>
+    </div>
+
+    <!-- SERIES LIST -->
+    <div class="tab-content" id="tab-series">
+      <div id="seriesList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
+    </div>
+
+    <!-- USERS -->
+    <div class="tab-content" id="tab-users">
+      <div id="usersList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
+    </div>
+
+    <!-- ADMINS -->
+    <div class="tab-content" id="tab-admins">
+      <div class="step">
+        <div class="step-header"><div class="step-title">Add New Admin</div></div>
+        <label>Email Address</label>
+        <div class="search-row">
+          <input type="text" id="newAdminEmail" placeholder="someone@gmail.com" style="margin-bottom:0;"/>
+          <button class="btn btn-gold" onclick="addAdmin()">Add</button>
+        </div>
+        <div class="status" id="adminAddStatus"></div>
+      </div>
+      <div id="adminsList"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
+    </div>
+
+    <!-- SITE -->
+    <div class="tab-content" id="tab-site">
+      <div style="background:var(--card-bg,#1a1a1a);border:1px solid var(--border,#333);border-radius:8px;padding:1rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:0.9rem;font-weight:600;">🌍 African Cinema</div>
+          <div style="font-size:0.75rem;color:var(--gray);margin-top:0.15rem;">Show the African Cinema section and its Plus subscription plans on the live site</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:48px;height:26px;flex-shrink:0;">
+          <input type="checkbox" id="africanCinemaToggle" onchange="toggleAfricanCinema(this.checked)" style="opacity:0;width:0;height:0;">
+          <span id="africanCinemaSlider" style="position:absolute;cursor:pointer;inset:0;background:#333;border-radius:26px;transition:0.2s;"></span>
+        </label>
+      </div>
+      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">Live preview of Picha+</div>
+      <div class="site-frame-wrap">
+        <div class="site-frame-toolbar">
+          <span style="font-size:0.8rem;">🌐</span>
+          <span class="site-frame-url">keromisec9-prog.github.io/picha-plus/</span>
+          <button class="btn btn-sm btn-outline" onclick="document.getElementById('siteFrame').src=document.getElementById('siteFrame').src" style="padding:0.25rem 0.6rem;font-size:0.7rem;">↻ Refresh</button>
+          <a href="https://keromisec9-prog.github.io/picha-plus/" target="_blank" class="btn btn-sm btn-gold" style="padding:0.25rem 0.6rem;font-size:0.7rem;text-decoration:none;">↗ Open</a>
+        </div>
+        <iframe id="siteFrame" src="https://keromisec9-prog.github.io/picha-plus/" loading="lazy" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- GRANT MODAL -->
+<div class="modal-overlay" id="grantModal">
+  <div class="modal">
+    <h3>Grant Subscription</h3>
+    <p style="font-size:0.82rem;color:var(--gray);margin-bottom:1rem;" id="grantUserName"></p>
+    <label>Plan</label>
+    <select id="grantPlan" class="input" style="margin-bottom:0.8rem;" onchange="onGrantPlanChange()">
+      <option value="daily">Daily — UGX 1,000 (1 day)</option>
+      <option value="dailyplus">Daily+ 🌍 — UGX 2,000 (1 day)</option>
+      <option value="weekly">Weekly — UGX 5,000 (7 days)</option>
+      <option value="weeklyplus">Weekly+ 🌍 — UGX 8,000 (7 days)</option>
+      <option value="monthly" selected>Monthly — UGX 15,000 (30 days)</option>
+      <option value="monthlyplus">Monthly+ 🌍 — UGX 20,000 (30 days)</option>
+      <option value="quarterly">Quarterly — UGX 60,000 (90 days)</option>
+      <option value="yearly">Yearly — UGX 120,000 (365 days)</option>
+      <option value="premium">Premium (Lifetime)</option>
+    </select>
+    <label>Number of Days</label>
+    <input type="text" id="grantDays" placeholder="e.g. 30"/>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-full" onclick="closeGrant()">Cancel</button>
+      <button class="btn btn-gold btn-full" onclick="confirmGrant()">Grant Access</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ADD EPISODE MODAL -->
+<div class="modal-overlay" id="episodeModal" style="display:none;">
+  <div class="modal" style="max-width:420px;width:92%;">
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+      <button class="btn" id="epModeNew" onclick="setEpMode('new')" style="flex:1;font-size:0.75rem;background:var(--gold);color:#000;">➕ New Episode</button>
+      <button class="btn" id="epModePart" onclick="setEpMode('part')" style="flex:1;font-size:0.75rem;">🎬 Add Part to Episode</button>
+    </div>
+    <p style="font-size:0.82rem;color:var(--gray);margin-bottom:1rem;" id="episodeSeriesTitle"></p>
+    <input type="hidden" id="episodeSeriesId"/>
+    <label>Season <span style="color:var(--gray);font-size:0.75rem;">(optional)</span></label>
+    <input type="number" id="episodeSeason" value="1" min="1" placeholder="1 (default)"/>
+    <label>Episode Number</label>
+    <input type="number" id="episodeNum" placeholder="e.g. 1" min="1"/>
+    <label>Episode Title (optional)</label>
+    <input type="text" id="episodeTitle" placeholder="e.g. Pilot"/>
+    <label>File Path (save as)</label>
+    <input type="text" id="episodeFileName" placeholder="series/123/s1e1_title.mp4"/>
+    <label>Video File</label>
+    <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('episodeFileInput').click()">Browse</button>
+      <span id="epSelFileName" style="font-size:0.8rem;color:var(--gray);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+    </div>
+    <input type="file" id="episodeFileInput" accept="video/*" style="display:none;"/>
+    <div class="progress-wrap" id="epProgressWrap" style="display:none;">
+      <div class="progress-track"><div class="progress-fill" id="epProgressFill"></div></div>
+      <div class="progress-label" id="epProgressLabel">0%</div>
+    </div>
+    <div id="epQueueList" style="margin-bottom:0.5rem;"></div>
+    <div class="status" id="episodeAddStatus" style="display:none;"></div>
+    <!-- Add Part to Episode section -->
+    <div id="epPartSection" style="display:none;">
+      <label>Episode Key (e.g. s1e2)</label>
+      <input type="text" id="epPartKey" placeholder="s1e1, s1e2..." style="margin-bottom:0.5rem;"/>
+      <label>Part Label (optional)</label>
+      <input type="text" id="epPartLabel" placeholder="Part 2, Part 3..." style="margin-bottom:0.5rem;"/>
+      <label>Video File</label>
+      <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('epPartFileInput').click()">Browse</button>
+        <span id="epPartSelFileName" style="font-size:0.8rem;color:var(--gray);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      </div>
+      <input type="file" id="epPartFileInput" accept="video/*" style="display:none;" onchange="document.getElementById('epPartSelFileName').textContent=this.files[0]?.name||''"/>
+      <div class="progress-wrap" id="epPartProgressWrap" style="display:none;">
+        <div class="progress-track"><div class="progress-fill" id="epPartProgressFill"></div></div>
+        <div class="progress-label" id="epPartProgressLabel">0%</div>
+      </div>
+      <div class="status" id="epPartStatus" style="display:none;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-full" onclick="closeEpisodeModal()">Cancel</button>
+      <button class="btn btn-gold btn-full" id="episodeUploadBtn" onclick="queueEpisodeUpload()">⬆️ Upload & Add Episode</button>
+      <button class="btn btn-gold btn-full" id="epPartUploadBtn" onclick="uploadAndAddEpisodePart()" style="display:none;">⬆️ Upload & Add Part</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const ADMIN_API = 'https://picha-admin-worker.kerosoftz522.workers.dev';
+const MAIN_API  = 'https://picha-plus-worker.kerosoftz522.workers.dev';
+const TMDB_KEY  = '3ba29e8934b640ae467a31241cd2f0fd';
+
+let sessionToken = null;
+let selectedMovie = null;
+let uploadedFileName = null;
+let selectedVJ = 'VJ Junior';
+let grantUserId = null;
+let isSuperAdmin = false;
+let selectedSeries = null;
+let selectedSeriesVJ = 'VJ Junior';
+
+window.addEventListener('load', async () => {
+  // Check hash fragment first (OAuth callback uses hash to survive redirects)
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  const queryParams = new URLSearchParams(window.location.search);
+
+  const tok = hashParams.get('session') || queryParams.get('session');
+  const errParam = hashParams.get('error') || queryParams.get('error');
+
+  if (tok) {
+    sessionToken = tok;
+    localStorage.setItem('pichaplus_admin_session', tok);
+    window.history.replaceState({}, '', window.location.pathname);
+  } else {
+    sessionToken = localStorage.getItem('pichaplus_admin_session');
+  }
+  const reasonParam = hashParams.get('reason') || queryParams.get('reason') || '';
+  if (errParam === 'not_admin') showGateErr('❌ Your account is not authorized as admin.');
+  else if (errParam) showGateErr(`❌ Sign in failed: ${reasonParam || errParam}`);
+  if (sessionToken) await checkAdmin();
+});
+
+async function checkAdmin() {
+  try {
+    const res = await fetch(`${ADMIN_API}/check`, { headers: { 'X-Session-Token': sessionToken } });
+    if (res.ok) {
+      const data = await res.json();
+      isSuperAdmin = data.superAdmin || false;
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('panel').style.display = 'block';
+      document.getElementById('navUser').textContent = data.name || data.email;
+      document.getElementById('signOutBtn').style.display = 'block';
+      if (isSuperAdmin) document.getElementById('adminsTab').style.display = 'block';
+      loadVJs();
+    } else if (res.status === 401 || res.status === 403) {
+      // Session expired or invalid — clear and show sign in
+      localStorage.removeItem('pichaplus_admin_session');
+      sessionToken = null;
+      showGateErr('');
+    } else {
+      showGateErr('❌ Your account is not authorized as admin.');
+      localStorage.removeItem('pichaplus_admin_session');
+    }
+  } catch(e) {
+    showGateErr('❌ Could not connect to server. Error: ' + e.message);
+  }
+}
+
+function showGateErr(msg) {
+  document.getElementById('gateErr').textContent = msg;
+  document.getElementById('gateErr').style.display = 'block';
+}
+
+function signIn() { window.location.href = `${ADMIN_API}/auth/google`; }
+
+async function signOut() {
+  try {
+    await fetch(`${ADMIN_API}/auth/logout`, {
+      method: 'POST',
+      headers: { 'X-Session-Token': sessionToken }
+    });
+  } catch {}
+  localStorage.removeItem('pichaplus_admin_session');
+  sessionToken = null; isSuperAdmin = false;
+  document.getElementById('panel').style.display = 'none';
+  document.getElementById('gate').style.display = 'block';
+  document.getElementById('signOutBtn').style.display = 'none';
+  document.getElementById('navUser').textContent = '';
+  document.getElementById('adminsTab').style.display = 'none';
+  document.getElementById('gateErr').style.display = 'none';
+  toast('Signed out');
+}
+
+function switchTab(name) {
+  const tabs = ['add','movies','addseries','series','users','admins','site'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  if (name==='movies') loadMovies();
+  if (name==='series') loadSeries();
+  if (name==='users') loadUsers();
+  if (name==='admins') loadAdmins();
+  if (name==='site') loadSiteSettings();
+}
+
+// ── SITE SETTINGS ─────────────────────────────────────────────────────────────
+async function loadSiteSettings() {
+  try {
+    const res = await fetch(`${ADMIN_API}/settings`, { headers: { 'X-Session-Token': sessionToken } });
+    const settings = await res.json();
+    const toggle = document.getElementById('africanCinemaToggle');
+    if (toggle) toggle.checked = settings.africanCinemaEnabled !== false;
+  } catch (e) {}
+}
+
+async function toggleAfricanCinema(enabled) {
+  try {
+    await fetch(`${ADMIN_API}/settings`, {
+      method: 'POST',
+      headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ africanCinemaEnabled: enabled })
+    });
+  } catch (e) {
+    alert('Failed to update setting. Please try again.');
+  }
+}
+
+// ── FILE SEARCH ───────────────────────────────────────────────────────────────
+function filterFiles(val) {
+  const hint = document.getElementById('fileSearchHint');
+  hint.style.display = val.trim() ? 'block' : 'none';
+  if (val.trim()) {
+    // Auto-fill file name input with slugified search term
+    const slug = val.trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'');
+    if (slug) document.getElementById('fileNameInput').value = `movies/${slug}.mp4`;
+  }
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('selFileName').textContent = `📁 ${file.name}`;
+  document.getElementById('fileSearch').value = file.name;
+  if (!document.getElementById('fileNameInput').value || document.getElementById('fileNameInput').value === 'movies/.mp4') {
+    const slug = file.name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-\.]/g,'').replace(/\.(mp4|mkv|avi)$/,'')+'.mp4';
+    document.getElementById('fileNameInput').value = `movies/${slug}`;
+  }
+});
+
+// ── UPLOAD ────────────────────────────────────────────────────────────────────
+async function uploadVideo() {
+  const file = document.getElementById('fileInput').files[0];
+  const fileName = document.getElementById('fileNameInput').value.trim();
+  if (!file) return toast('Please select a video file first', 'error');
+  if (!fileName) return toast('Please enter a file path', 'error');
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Starting upload...';
+  document.getElementById('progressWrap').style.display = 'block';
+
+  const CHUNK_SIZE = 20 * 1024 * 1024; // 20MB per chunk
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const updateProgress = (uploadedBytes) => {
+    const pct = Math.round(uploadedBytes / file.size * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent =
+      `${pct}% — ${(uploadedBytes/1024/1024).toFixed(1)} MB / ${(file.size/1024/1024).toFixed(1)} MB`;
+  };
+
+  try {
+    // Use single upload for files under 20MB
+    if (file.size <= CHUNK_SIZE) {
+      const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
+        headers: { 'X-Session-Token': sessionToken }
+      });
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData.error || 'Failed to get upload URL');
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', urlData.uploadUrl);
+        xhr.setRequestHeader('Authorization', urlData.authToken || urlData.authorizationToken);
+        xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+        xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+        xhr.upload.onprogress = e => { if (e.lengthComputable) updateProgress(e.loaded); };
+        xhr.onload = () => xhr.status === 200 ? resolve() : reject(new Error('Upload failed: ' + xhr.status));
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.send(file);
+      });
+    } else {
+      // Multipart upload for large files
+      btn.innerHTML = '<span class="spin"></span> Starting multipart upload...';
+      const startRes = await fetch(`${ADMIN_API}/b2-start-large-file`, {
+        method: 'POST',
+        headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName })
+      });
+      const startData = await startRes.json();
+      if (!startRes.ok) throw new Error(startData.error || 'Failed to start upload');
+
+      const { fileId, authorizationToken, apiUrl } = startData;
+      const partSha1Array = [];
+      let uploadedBytes = 0;
+
+      for (let i = 0; i < totalChunks; i++) {
+        const partNumber = i + 1;
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        btn.innerHTML = `<span class="spin"></span> Part ${partNumber}/${totalChunks}...`;
+
+        // Get upload URL for this part (retry up to 3 times)
+        let partUrl, partAuth;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const partUrlRes = await fetch(`${ADMIN_API}/b2-upload-part-url`, {
+              method: 'POST',
+              headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileId, authorizationToken, apiUrl })
+            });
+            const partUrlData = await partUrlRes.json();
+            partUrl = partUrlData.uploadUrl;
+            partAuth = partUrlData.authorizationToken;
+            break;
+          } catch(e) {
+            if (attempt === 2) throw e;
+            await new Promise(r => setTimeout(r, 2000));
+          }
+        }
+
+        // Upload part with retry
+        let sha1;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            sha1 = await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', partUrl);
+              xhr.setRequestHeader('Authorization', partAuth);
+              xhr.setRequestHeader('X-Bz-Part-Number', partNumber);
+              xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+              xhr.upload.onprogress = e => {
+                if (e.lengthComputable) updateProgress(uploadedBytes + e.loaded);
+              };
+              xhr.onload = () => {
+                if (xhr.status === 200) {
+                  const resp = JSON.parse(xhr.responseText);
+                  // B2 returns the real SHA1 even when we send do_not_verify
+                  const sha1 = resp.contentSha1 || '';
+                  resolve(sha1.replace('unverified:', ''));
+                } else {
+                  reject(new Error('Part failed: ' + xhr.status + ' ' + xhr.responseText));
+                }
+              };
+              xhr.onerror = () => reject(new Error('Network error on part ' + partNumber));
+              xhr.send(chunk);
+            });
+            break;
+          } catch(e) {
+            if (attempt === 2) throw e;
+            document.getElementById('progressLabel').textContent += ` ⚠️ Retrying part ${partNumber}...`;
+            await new Promise(r => setTimeout(r, 3000));
+          }
+        }
+
+        partSha1Array.push(sha1);
+        uploadedBytes += chunk.size;
+        updateProgress(uploadedBytes);
+      }
+
+      // Finish large file
+      btn.innerHTML = '<span class="spin"></span> Finishing...';
+      console.log('Finishing with SHA1s:', partSha1Array);
+      const finishRes = await fetch(`${ADMIN_API}/b2-finish-large-file`, {
+        method: 'POST',
+        headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, partSha1Array, authorizationToken, apiUrl })
+      });
+      const finishData = await finishRes.json();
+      if (!finishRes.ok) throw new Error(finishData.error || 'Failed to finish upload');
+    }
+    uploadedFileName = fileName;
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('progressLabel').textContent = '✅ Upload complete!';
+    document.getElementById('s1n').style.background = 'var(--green)';
+    showStatus('uploadStatus', '✅ Uploaded successfully!', 'success');
+    btn.innerHTML = '✅ Uploaded!';
+    const guess = fileName.split('/').pop().replace(/\.mp4$/i,'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    document.getElementById('tmdbQuery').value = guess;
+    toast('Upload done! Now search for the movie 👇', 'success');
+  } catch(e) {
+    showStatus('uploadStatus', '❌ '+e.message, 'error');
+    btn.disabled = false; btn.textContent = 'Upload to Backblaze';
+  }
+}
+
+// ── TMDB ──────────────────────────────────────────────────────────────────────
+async function searchTMDB() {
+  const query = document.getElementById('tmdbQuery').value.trim();
+  if (!query) return;
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${TMDB_KEY}`);
+    const data = await res.json();
+    const results = (data.results||[]).slice(0,9);
+    if (!results.length) { showStatus('tmdbStatus','❌ No results found.','error'); document.getElementById('posterGrid').innerHTML=''; }
+    else {
+      document.getElementById('tmdbStatus').style.display='none';
+      window._tmdbResults = results;
+      document.getElementById('posterGrid').innerHTML = results.map((m,i) => {
+        const poster = m.poster_path ? `https://image.tmdb.org/t/p/w342${m.poster_path}` : null;
+        const year = m.release_date ? m.release_date.slice(0,4) : '';
+        return `<div class="poster-opt" onclick="selectMovie(${i})" data-idx="${i}">
+          ${poster ? `<img src="${poster}" loading="lazy"/>` : `<div style="background:#222;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">🎬</div>`}
+          <div class="poster-label">${esc(m.title)} ${year?`<span style="color:#aaa">(${year})</span>`:''}</div>
+        </div>`;
+      }).join('');
+    }
+  } catch { showStatus('tmdbStatus','❌ Search failed.','error'); }
+  finally { btn.disabled=false; btn.textContent='Search'; }
+}
+
+async function selectMovie(idx) {
+  const m = window._tmdbResults[idx];
+  if (!m) return;
+  document.querySelectorAll('.poster-opt').forEach(e=>e.classList.remove('sel'));
+  document.querySelector(`.poster-opt[data-idx="${idx}"]`).classList.add('sel');
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/movie/${m.id}?api_key=${TMDB_KEY}`);
+    const full = await res.json();
+    selectedMovie = {
+      tmdbId: full.id, title: full.title,
+      poster: full.poster_path ? `https://image.tmdb.org/t/p/w300${full.poster_path}` : '',
+      backdrop: full.backdrop_path ? `https://image.tmdb.org/t/p/w780${full.backdrop_path}` : '',
+      year: full.release_date ? full.release_date.slice(0,4) : '',
+      rating: Math.round(full.vote_average*10)/10,
+      overview: full.overview||'',
+      genreIds: (full.genres||[]).map(g=>g.id),
+    };
+    const genres = (full.genres||[]).map(g=>`<span class="tag">${g.name}</span>`).join('');
+    document.getElementById('moviePreview').innerHTML = `
+      <div class="movie-preview">
+        <img src="${selectedMovie.poster}" alt="${esc(selectedMovie.title)}"/>
+        <div class="preview-info">
+          <div style="margin-bottom:0.3rem;">${genres}</div>
+          <h3>${esc(selectedMovie.title)}</h3>
+          <p style="color:var(--gold);margin-bottom:0.3rem;">⭐ ${selectedMovie.rating} · ${selectedMovie.year}</p>
+          <p>${esc((selectedMovie.overview||'').slice(0,100))}${selectedMovie.overview?.length>100?'...':''}</p>
+        </div>
+      </div>`;
+    document.getElementById('s2n').style.background = 'var(--green)';
+    toast('Movie selected! Choose VJ and add 👇', 'success');
+  } catch { toast('Could not load movie details', 'error'); }
+}
+
+function selectSeriesVJ(vj, el) {
+  selectedSeriesVJ = vj;
+  document.querySelectorAll('#tab-addseries .vj-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('seriesVjCustom').value = '';
+}
+
+function selectVJ(vj, el) {
+  selectedVJ = vj;
+  document.querySelectorAll('#movieVjPills .vj-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('vjCustom').value = '';
+}
+
+let _allVJs = [];
+
+async function loadVJs() {
+  try {
+    const res = await fetch(`${ADMIN_API}/vjs`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    _allVJs = data.vjs?.length ? data.vjs : ['VJ Junior'];
+    renderVJPills();
+  } catch {
+    _allVJs = ['VJ Junior'];
+    renderVJPills();
+  }
+}
+
+function renderVJPills() {
+  const movieContainer = document.getElementById('movieVjPills');
+  const seriesContainer = document.getElementById('seriesVjPills');
+  if (movieContainer) {
+    movieContainer.innerHTML = _allVJs.map((vj, i) =>
+      `<div class="vj-pill${vj === selectedVJ ? ' active' : ''}" onclick="selectVJ('${esc(vj)}',this)">${esc(vj)}</div>`
+    ).join('');
+  }
+  if (seriesContainer) {
+    seriesContainer.innerHTML = _allVJs.map((vj, i) =>
+      `<div class="vj-pill${vj === selectedSeriesVJ ? ' active' : ''}" onclick="selectSeriesVJ('${esc(vj)}',this)">${esc(vj)}</div>`
+    ).join('');
+  }
+}
+
+async function registerNewVJ(name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed || _allVJs.includes(trimmed)) return;
+  try {
+    await fetch(`${ADMIN_API}/vj-add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    _allVJs.push(trimmed);
+    _allVJs.sort();
+    renderVJPills();
+  } catch {}
+}
+
+let customPosterUrl = null;
+let seriesCustomPosterUrl = null;
+
+function previewCustomPoster_movie(input) {
+  const file = input.files[0]; if (!file) return;
+  document.getElementById('movieCustomPosterPreview').src = URL.createObjectURL(file);
+  document.getElementById('movieCustomPosterPreview').style.display = 'block';
+  document.getElementById('movieCustomPosterUploadBtn').style.display = 'inline-block';
+  document.getElementById('movieCustomPosterStatus').textContent = file.name;
+}
+
+function previewCustomPoster_series(input) {
+  const file = input.files[0]; if (!file) return;
+  document.getElementById('seriesCustomPosterPreview').src = URL.createObjectURL(file);
+  document.getElementById('seriesCustomPosterPreview').style.display = 'block';
+  document.getElementById('seriesCustomPosterUploadBtn').style.display = 'inline-block';
+  document.getElementById('seriesCustomPosterStatus').textContent = file.name;
+}
+
+async function _uploadCustomPosterFile(file, tmdbId, prefix) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const fileName = 'posters/' + Date.now() + '_' + (tmdbId || 'custom') + '.' + ext;
+  const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
+    headers: { 'X-Session-Token': sessionToken }
+  });
+  const urlData = await urlRes.json();
+  if (!urlRes.ok) throw new Error(urlData.error || 'Failed to get upload URL');
+  await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', urlData.uploadUrl);
+    xhr.setRequestHeader('Authorization', urlData.authToken || urlData.authorizationToken);
+    xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+    xhr.setRequestHeader('Content-Type', file.type || 'image/jpeg');
+    xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+    xhr.onload = () => xhr.status < 300 ? resolve() : reject(new Error('Upload failed'));
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(file);
+  });
+  return `https://f003.backblazeb2.com/file/picha-plus-videos/` + fileName;
+}
+
+async function uploadCustomPoster_movie() {
+  const file = document.getElementById('movieCustomPosterFile').files[0];
+  if (!file) return;
+  const btn = document.getElementById('movieCustomPosterUploadBtn');
+  const status = document.getElementById('movieCustomPosterStatus');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  status.textContent = 'Uploading...';
+  try {
+    customPosterUrl = await _uploadCustomPosterFile(file, selectedMovie?.tmdbId, 'movie');
+    if (selectedMovie) selectedMovie.poster = customPosterUrl;
+    status.textContent = '✅ Uploaded!';
+    btn.innerHTML = '✅ Done';
+    toast('Custom movie poster uploaded!', 'success');
+  } catch(e) {
+    status.textContent = '❌ ' + e.message;
+    btn.disabled = false; btn.innerHTML = '⬆️ Upload';
+  }
+}
+
+async function uploadCustomPoster_series() {
+  const file = document.getElementById('seriesCustomPosterFile').files[0];
+  if (!file) return;
+  const btn = document.getElementById('seriesCustomPosterUploadBtn');
+  const status = document.getElementById('seriesCustomPosterStatus');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  status.textContent = 'Uploading...';
+  try {
+    seriesCustomPosterUrl = await _uploadCustomPosterFile(file, selectedSeries?.tmdbId, 'series');
+    if (selectedSeries) selectedSeries.poster = seriesCustomPosterUrl;
+    status.textContent = '✅ Uploaded!';
+    btn.innerHTML = '✅ Done';
+    toast('Custom series poster uploaded!', 'success');
+  } catch(e) {
+    status.textContent = '❌ ' + e.message;
+    btn.disabled = false; btn.innerHTML = '⬆️ Upload';
+  }
+}
+
+
+
+async function addMovie() {
+  if (!uploadedFileName) return toast('Upload the video first (Step 1)', 'error');
+  if (!selectedMovie) return toast('Select a movie from TMDB (Step 2)', 'error');
+  if (!selectedMovie.poster) return toast('A poster is required — choose a TMDB poster or upload a custom one', 'error');
+  const vj = document.getElementById('vjCustom').value.trim() || selectedVJ;
+  const btn = document.getElementById('addBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Adding...';
+  try {
+    const res = await fetch(`${ADMIN_API}/add-movie`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ ...selectedMovie, fileName: uploadedFileName, vj, part: document.getElementById('moviePart').value.trim() || null, isUgandan: document.getElementById('isUgandan').checked }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('s3n').style.background = 'var(--green)';
+      showStatus('addStatus', `🎉 "${selectedMovie.title}" is now live on Picha+!`, 'success');
+      btn.innerHTML = '🎉 Added!';
+      toast('Movie added!', 'success');
+      setTimeout(resetForm, 3000);
+    } else throw new Error(data.error);
+  } catch(e) {
+    showStatus('addStatus', '❌ '+e.message, 'error');
+    btn.disabled = false; btn.innerHTML = '✅ Add Movie to Picha+';
+  }
+}
+
+function resetForm() {
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileNameInput').value = '';
+  document.getElementById('moviePart').value = '';
+  document.getElementById('fileSearch').value = '';
+  document.getElementById('selFileName').textContent = '';
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('uploadBtn').disabled = false;
+  document.getElementById('uploadBtn').textContent = 'Upload to Backblaze';
+  document.getElementById('tmdbQuery').value = '';
+  document.getElementById('posterGrid').innerHTML = '';
+  document.getElementById('moviePreview').innerHTML = '';
+  document.getElementById('vjCustom').value = '';
+  selectedMovie = null; uploadedFileName = null; selectedVJ = 'VJ Junior';
+  ['s1n','s2n','s3n'].forEach((id,i) => { document.getElementById(id).textContent=i+1; document.getElementById(id).style.background='var(--gold)'; });
+  ['uploadStatus','tmdbStatus','addStatus'].forEach(id => document.getElementById(id).style.display='none');
+  document.getElementById('addBtn').innerHTML = '✅ Add Movie to Picha+';
+  document.getElementById('addBtn').disabled = false;
+  document.querySelectorAll('.vj-pill').forEach((p,i) => p.classList.toggle('active', i===0));
+}
+
+// ── MOVIES ────────────────────────────────────────────────────────────────────
+let _allMoviesCache = [];
+
+async function loadMovies() {
+  document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API}/movies`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    if (!data.movies?.length) { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No movies yet.</div>'; return; }
+    _allMoviesCache = data.movies.slice().sort((a,b) => (b.addedAt||0) - (a.addedAt||0));
+    renderMoviesList(_allMoviesCache);
+  } catch { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
+}
+
+function _movieCardHTML(m) {
+  return `
+    <div class="card" id="movieCard_${esc(m._key)}">
+      <img src="${m.poster}" style="width:40px;height:60px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.display='none'"/>
+      <div class="card-info">
+        <div class="card-title">${esc(m.title)}</div>
+        <div class="card-meta" id="movieMeta_${esc(m._key)}">${m.year} · ⭐${m.rating} · ${esc(m.vj||'')}${m.part ? ' · <span style="color:var(--gold);">'+esc(m.part)+'</span>' : ''}</div>
+        <div id="movieEditRow_${esc(m._key)}" style="display:none;margin-top:0.4rem;gap:0.4rem;align-items:center;flex-wrap:wrap;"></div>
+        <div id="moviePartRow_${esc(m._key)}" style="display:none;margin-top:0.4rem;gap:0.4rem;align-items:center;"></div>
+      </div>
+      <button class="btn btn-sm" onclick="toggleEditMovieVJ('${esc(m._key)}')" style="background:var(--bg3);" title="Edit VJ">✏️</button>
+      <button class="btn btn-sm" onclick="toggleEditMoviePart('${esc(m._key)}','${esc(m.part||'')}')" style="background:var(--bg3);" title="Edit Part">🎬</button>
+      <button class="btn btn-red btn-sm" onclick="deleteMovie('${esc(m._key)}','${esc(m.title)}')">🗑</button>
+    </div>`;
+}
+
+function renderMoviesList(movies) {
+  document.getElementById('moviesList').innerHTML = `
+    <input type="text" id="movieSearchInput" class="input" placeholder="🔍 Search movies..." oninput="filterMoviesList(this.value)" style="margin-bottom:0.8rem;"/>
+    <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${movies.length} movie(s)</div>
+    <div id="moviesListItems">${movies.map(m => _movieCardHTML(m)).join('')}</div>`;
+}
+
+function filterMoviesList(query) {
+  const q = query.trim().toLowerCase();
+  const filtered = q ? _allMoviesCache.filter(m => m.title.toLowerCase().includes(q)) : _allMoviesCache;
+  document.getElementById('moviesListItems').innerHTML = filtered.map(m => _movieCardHTML(m)).join('');
+}
+
+function toggleEditMovieVJ(movieKey) {
+  const row = document.getElementById(`movieEditRow_${movieKey}`);
+  if (!row) return;
+  const isOpen = row.style.display !== 'none';
+  if (isOpen) { row.style.display = 'none'; row.innerHTML = ''; return; }
+  row.style.display = 'flex';
+  const pills = _allVJs.map(vj =>
+    `<span class="vj-pill" style="font-size:0.68rem;padding:0.25rem 0.6rem;" onclick="saveMovieVJ('${movieKey}','${esc(vj)}')">${esc(vj)}</span>`
+  ).join('');
+  row.innerHTML = pills;
+}
+
+function toggleEditMoviePart(movieKey, currentPart) {
+  const row = document.getElementById(`moviePartRow_${movieKey}`);
+  if (!row) return;
+  const isOpen = row.style.display === 'flex';
+  if (isOpen) { row.style.display = 'none'; row.innerHTML = ''; return; }
+  row.style.display = 'flex';
+  row.innerHTML = `
+    <input type="text" value="${esc(currentPart)}" id="partInput_${movieKey}" class="input" placeholder="e.g. Part 1, Part 2..." style="flex:1;font-size:0.75rem;padding:0.3rem 0.5rem;"/>
+    <button class="btn btn-gold btn-sm" onclick="saveMoviePart('${movieKey}')">Save</button>
+    <button class="btn btn-sm" onclick="toggleEditMoviePart('${movieKey}','')">✕</button>`;
+}
+
+async function saveMoviePart(movieKey) {
+  const input = document.getElementById(`partInput_${movieKey}`);
+  const newPart = input ? input.value.trim() : '';
+  try {
+    const res = await fetch(`${ADMIN_API}/edit-movie-part`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ movieKey, newPart: newPart || null }),
+    });
+    const data = await res.json();
+    if (data.success) { toast(`Part updated!`, 'success'); loadMovies(); }
+    else throw new Error(data.error);
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
+
+async function saveMovieVJ(movieKey, newVJ) {
+  try {
+    const res = await fetch(`${ADMIN_API}/edit-movie-vj`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ movieKey, newVJ }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`VJ updated to "${newVJ}"`, 'success');
+      loadMovies();
+    } else throw new Error(data.error);
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
+
+async function deleteMovie(movieKey, title) {
+  if (!confirm(`Delete "${title}"?`)) return;
+  try {
+    const res = await fetch(`${ADMIN_API}/delete-movie`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ movieKey }),
+    });
+    const data = await res.json();
+    if (data.success) { toast(`Deleted "${title}"`, 'success'); loadMovies(); }
+    else throw new Error(data.error);
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
+
+
+// ── SERIES ────────────────────────────────────────────────────────────────────
+async function searchSeriesTMDB() {
+  const query = document.getElementById('seriesTmdbQuery').value.trim();
+  if (!query) return;
+  showStatus('seriesTmdbStatus', '🔍 Searching...', 'info');
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}&api_key=${TMDB_KEY}`);
+    const data = await res.json();
+    const results = data.results || [];
+    if (!results.length) { showStatus('seriesTmdbStatus','❌ No results found.','error'); document.getElementById('seriesPosterGrid').innerHTML=''; return; }
+    document.getElementById('seriesTmdbStatus').style.display='none';
+    window._seriesResults = results;
+    document.getElementById('seriesPosterGrid').innerHTML = results.slice(0,9).map((s,i) => {
+      const poster = s.poster_path ? `https://image.tmdb.org/t/p/w342${s.poster_path}` : null;
+      return `<div class="poster-item ${i===0?'selected':''}" onclick="selectSeriesResult(${i},this)">
+        ${poster ? `<img src="${poster}" alt="${esc(s.name)}"/>` : `<div class="poster-placeholder">🎬</div>`}
+        <div class="poster-title">${esc(s.name)} (${(s.first_air_date||'').slice(0,4)||'?'})</div>
+      </div>`;
+    }).join('');
+    selectSeriesResult(0, document.querySelector('#seriesPosterGrid .poster-item'));
+  } catch { showStatus('seriesTmdbStatus','❌ Search failed.','error'); }
+}
+
+async function selectSeriesResult(idx, el) {
+  document.querySelectorAll('#seriesPosterGrid .poster-item').forEach(e=>e.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  const s = window._seriesResults[idx];
+  showStatus('seriesTmdbStatus','Loading details...','info');
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/tv/${s.id}?api_key=${TMDB_KEY}`);
+    const full = await res.json();
+    selectedSeries = {
+      tmdbId: full.id, title: full.name,
+      poster: full.poster_path ? `https://image.tmdb.org/t/p/w300${full.poster_path}` : '',
+      backdrop: full.backdrop_path ? `https://image.tmdb.org/t/p/w780${full.backdrop_path}` : '',
+      year: (full.first_air_date||'').slice(0,4),
+      rating: full.vote_average ? full.vote_average.toFixed(1) : 'N/A',
+      overview: full.overview || '',
+      genreIds: (full.genres||[]).map(g=>g.id),
+      seasons: full.number_of_seasons || 1,
+      episodes: full.number_of_episodes || 0,
+    };
+    document.getElementById('seriesTmdbStatus').style.display='none';
+    document.getElementById('seriesPreview').innerHTML = `
+      <div class="movie-preview">
+        ${selectedSeries.poster ? `<img src="${selectedSeries.poster}" alt="${esc(selectedSeries.title)}"/>` : ''}
+        <div>
+          <div style="font-weight:700;margin-bottom:0.3rem;">${esc(selectedSeries.title)}</div>
+          <div style="font-size:0.78rem;color:var(--gray);">${selectedSeries.year} · ⭐${selectedSeries.rating}</div>
+          <div style="font-size:0.78rem;color:var(--gray);">${selectedSeries.seasons} season(s) · ${selectedSeries.episodes} episodes</div>
+          <div style="font-size:0.75rem;color:var(--gray2);margin-top:0.4rem;">${esc(selectedSeries.overview.slice(0,120))}${selectedSeries.overview.length>120?'…':''}</div>
+        </div>
+      </div>`;
+  } catch { toast('Could not load series details', 'error'); }
+}
+
+let _seriesMode = 'tmdb';
+
+function setMovieMode(mode) {
+  document.getElementById('movieTmdbSection').style.display = mode === 'tmdb' ? 'block' : 'none';
+  document.getElementById('movieManualSection').style.display = mode === 'manual' ? 'block' : 'none';
+  document.getElementById('movieTmdbModeBtn').style.background = mode === 'tmdb' ? 'var(--gold)' : '';
+  document.getElementById('movieTmdbModeBtn').style.color = mode === 'tmdb' ? '#000' : '';
+  document.getElementById('movieManualModeBtn').style.background = mode === 'manual' ? 'var(--gold)' : '';
+  document.getElementById('movieManualModeBtn').style.color = mode === 'manual' ? '#000' : '';
+  if (mode === 'tmdb') { selectedMovie = null; document.getElementById('moviePreview').innerHTML = ''; }
+}
+
+function confirmManualMovie() {
+  const title = document.getElementById('manualMovieTitle').value.trim();
+  if (!title) { showStatus('manualMovieStatus', '❌ Title is required', 'error'); return; }
+  selectedMovie = {
+    tmdbId: null,
+    title,
+    poster: customPosterUrl || '',
+    backdrop: customPosterUrl || '',
+    year: document.getElementById('manualMovieYear').value.trim() || '',
+    rating: 0,
+    overview: document.getElementById('manualMovieOverview').value.trim() || '',
+    genreIds: [],
+  };
+  showStatus('manualMovieStatus', `✅ "${title}" ready to add. Select VJ below.`, 'success');
+}
+
+function setSeriesMode(mode) {
+  _seriesMode = mode;
+  document.getElementById('seriesTmdbSection').style.display = mode === 'tmdb' ? 'block' : 'none';
+  document.getElementById('seriesManualSection').style.display = mode === 'manual' ? 'block' : 'none';
+  document.getElementById('seriesTmdbModeBtn').style.background = mode === 'tmdb' ? 'var(--gold)' : '';
+  document.getElementById('seriesTmdbModeBtn').style.color = mode === 'tmdb' ? '#000' : '';
+  document.getElementById('seriesManualModeBtn').style.background = mode === 'manual' ? 'var(--gold)' : '';
+  document.getElementById('seriesManualModeBtn').style.color = mode === 'manual' ? '#000' : '';
+}
+
+function confirmManualSeries() {
+  const title = document.getElementById('manualSeriesTitle').value.trim();
+  if (!title) { showStatus('manualSeriesStatus', '❌ Title is required', 'error'); return; }
+  selectedSeries = {
+    tmdbId: null, // worker will generate local_ ID
+    title,
+    poster: seriesCustomPosterUrl || '',
+    backdrop: seriesCustomPosterUrl || '',
+    year: document.getElementById('manualSeriesYear').value.trim() || '',
+    rating: 0,
+    overview: document.getElementById('manualSeriesOverview').value.trim() || '',
+    genreIds: [],
+    seasons: parseInt(document.getElementById('manualSeriesSeasons').value) || 1,
+    episodes: 0,
+  };
+  showStatus('manualSeriesStatus', `✅ "${title}" ready to add. Select VJ below.`, 'success');
+}
+
+async function addSeries() {
+  if (!selectedSeries) return toast('Select a series from TMDB (Step 1)', 'error');
+  const vj = document.getElementById('seriesVjCustom').value.trim() || selectedSeriesVJ;
+  const btn = document.getElementById('addSeriesBtn');
+  btn.disabled = true; btn.innerHTML = '⏳ Adding...';
+  try {
+    const res = await fetch(`${ADMIN_API}/add-series`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ ...selectedSeries, vj, isUgandan: document.getElementById('isUgandanSeries').checked }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showStatus('addSeriesStatus', `✅ "${selectedSeries.title}" added!`, 'success');
+      toast(`"${selectedSeries.title}" added to Picha+`, 'success');
+      selectedSeries = null;
+      document.getElementById('seriesPreview').innerHTML = '';
+      document.getElementById('seriesPosterGrid').innerHTML = '';
+      document.getElementById('seriesTmdbQuery').value = '';
+    } else throw new Error(data.error);
+  } catch(e) { showStatus('addSeriesStatus', '❌ '+e.message, 'error'); }
+  btn.disabled = false; btn.innerHTML = '📺 Add Series to Picha+';
+}
+
+async function loadSeries() {
+  document.getElementById('seriesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API}/series`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    if (!data.series?.length) { document.getElementById('seriesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No series yet.</div>'; return; }
+    document.getElementById('seriesList').innerHTML = `
+      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${data.series.length} series in catalog</div>
+      ${data.series.map(s=>`
+        <div class="card" style="flex-direction:column;align-items:stretch;gap:0.5rem;">
+          <div style="display:flex;gap:0.8rem;align-items:center;">
+            <img src="${s.poster}" style="width:40px;height:60px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.display='none'"/>
+            <div class="card-info" style="flex:1;">
+              <div class="card-title">${esc(s.title)}</div>
+              <div class="card-meta">${s.year||'?'} · ⭐${s.rating||'?'} · ${s.seasons||1} season(s) · ${Object.keys(s.episodes||{}).length} episodes added</div>
+            </div>
+            <button class="btn btn-red btn-sm" onclick="deleteSeries('${s._key || s.tmdbId}','${esc(s.title)}')">🗑</button>
+          </div>
+          <button class="btn btn-outline btn-sm btn-full" onclick="openAddEpisode('${s._key}','${esc(s.title)}')">➕ Add Episode</button>
+        </div>`).join('')}`;
+  } catch { document.getElementById('seriesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
+}
+
+async function deleteSeries(tmdbId, title) {
+  if (!confirm(`Delete "${title}" and all its episodes?`)) return;
+  try {
+    const res = await fetch(`${ADMIN_API}/delete-series`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ tmdbId }),
+    });
+    const data = await res.json();
+    if (data.success) { toast(`Deleted "${title}"`, 'success'); loadSeries(); }
+    else throw new Error(data.error);
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
+
+// ── ADD EPISODE MODAL ─────────────────────────────────────────────────────────
+function setEpMode(mode) {
+  const isNew = mode === 'new';
+  document.getElementById('epModeNew').style.background = isNew ? 'var(--gold)' : '';
+  document.getElementById('epModeNew').style.color = isNew ? '#000' : '';
+  document.getElementById('epModePart').style.background = !isNew ? 'var(--gold)' : '';
+  document.getElementById('epModePart').style.color = !isNew ? '#000' : '';
+  // Show/hide sections
+  ['episodeSeason','episodeNum','episodeTitle','episodeFileName','episodeFileInput','epSelFileName','epProgressWrap','episodeAddStatus'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.closest('label,div,input') && (el.style.display = isNew ? '' : 'none');
+  });
+  document.getElementById('epPartSection').style.display = isNew ? 'none' : 'block';
+  document.getElementById('episodeUploadBtn').style.display = isNew ? 'block' : 'none';
+  document.getElementById('epPartUploadBtn').style.display = isNew ? 'none' : 'block';
+}
+
+let _epPartXHR = null;
+
+async function uploadAndAddEpisodePart() {
+  const seriesKey = document.getElementById('episodeSeriesId').value;
+  const epKey = document.getElementById('epPartKey').value.trim();
+  const label = document.getElementById('epPartLabel').value.trim();
+  const file = document.getElementById('epPartFileInput').files[0];
+  if (!epKey) return showStatus('epPartStatus', '❌ Episode key required (e.g. s1e1)', 'error');
+  if (!file) return showStatus('epPartStatus', '❌ Select a video file', 'error');
+  const btn = document.getElementById('epPartUploadBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Uploading...';
+  showStatus('epPartStatus', '⬆️ Uploading...', 'info');
+  try {
+    // Get upload URL
+    const slug = file.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+    const fileName = `series/${seriesKey}/parts/${epKey}_${slug}_part.mp4`;
+    const urlRes = await fetch(`${ADMIN_API}/upload-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ fileName }),
+    });
+    const { uploadUrl, authToken } = await urlRes.json();
+    // Upload to B2
+    await new Promise((resolve, reject) => {
+      _epPartXHR = new XMLHttpRequest();
+      _epPartXHR.open('POST', uploadUrl);
+      _epPartXHR.setRequestHeader('Authorization', authToken);
+      _epPartXHR.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+      _epPartXHR.setRequestHeader('Content-Type', 'video/mp4');
+      _epPartXHR.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+      _epPartXHR.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded/e.total*100);
+          document.getElementById('epPartProgressWrap').style.display = 'block';
+          document.getElementById('epPartProgressFill').style.width = pct+'%';
+          document.getElementById('epPartProgressLabel').textContent = pct+'%';
+        }
+      };
+      _epPartXHR.onload = () => _epPartXHR.status < 400 ? resolve() : reject(new Error('Upload failed'));
+      _epPartXHR.onerror = () => reject(new Error('Upload error'));
+      _epPartXHR.send(file);
+    });
+    // Register part
+    const res = await fetch(`${ADMIN_API}/add-episode-part`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ seriesKey, epKey, fileName, label }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showStatus('epPartStatus', `✅ Part added! (${data.totalParts} parts total)`, 'success');
+      btn.innerHTML = '✅ Added!';
+    } else throw new Error(data.error);
+  } catch(e) {
+    showStatus('epPartStatus', '❌ '+e.message, 'error');
+    btn.disabled = false; btn.innerHTML = '⬆️ Upload & Add Part';
+  }
+}
+
+function openAddEpisode(seriesTmdbId, seriesTitle) {
+  document.getElementById('episodeSeriesId').value = seriesTmdbId;
+  document.getElementById('episodeSeriesTitle').textContent = seriesTitle;
+  document.getElementById('episodeModal').style.display = 'flex';
+  setEpMode('new');
+}
+function closeEpisodeModal() {
+  // Abort any in-progress upload
+  if (_epXHR) { try { _epXHR.abort(); } catch(e){} _epXHR = null; }
+  document.getElementById('episodeModal').style.display = 'none';
+  document.getElementById('episodeFileInput').value = '';
+  document.getElementById('episodeFileName').value = '';
+  document.getElementById('epSelFileName').textContent = '';
+  document.getElementById('episodeNum').value = '';
+  document.getElementById('episodeSeason').value = '1';
+  document.getElementById('episodeTitle').value = '';
+  document.getElementById('episodeAddStatus').style.display = 'none';
+  document.getElementById('epProgressWrap').style.display = 'none';
+  document.getElementById('epProgressFill').style.width = '0%';
+  document.getElementById('epProgressLabel').textContent = '0%';
+  const btn = document.getElementById('episodeUploadBtn');
+  btn.disabled = false; btn.innerHTML = '⬆️ Upload & Add Episode';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const epFile = document.getElementById('episodeFileInput');
+  if (epFile) epFile.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('epSelFileName').textContent = file.name;
+    const slug = file.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+    const sidRaw = document.getElementById('episodeSeriesId').value;
+    const sid = sidRaw.replace(/[^a-zA-Z0-9_]+/g, '_');
+    const sn = document.getElementById('episodeSeason').value || '1';
+    const en = document.getElementById('episodeNum').value || '1';
+    if (!document.getElementById('episodeFileName').value)
+      document.getElementById('episodeFileName').value = `series/${sid}/s${sn}e${en}_${slug}.mp4`;
+  });
+});
+
+let _epXHR = null; // legacy ref kept so closeEpisodeModal() doesn't throw
+
+// ── PARALLEL EPISODE UPLOAD QUEUE ──────────────────────────────────────────
+let _epActiveCount = 0;
+const _epMaxConcurrent = 3;
+const _epPendingQueue = [];
+
+function _epMakeRow(label) {
+  const list = document.getElementById('epQueueList');
+  const wrap = document.createElement('div');
+  wrap.className = 'progress-wrap';
+  wrap.style.display = 'block';
+  wrap.style.marginBottom = '0.75rem';
+  wrap.innerHTML = `
+    <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem;">
+      <span>${label}</span>
+      <span class="ep-row-status" style="color:var(--gray);">Queued</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill ep-row-fill" style="width:0%;"></div></div>
+    <div class="progress-label ep-row-pct">0%</div>
+  `;
+  list.appendChild(wrap);
+  return {
+    statusEl: wrap.querySelector('.ep-row-status'),
+    fillEl: wrap.querySelector('.ep-row-fill'),
+    pctEl: wrap.querySelector('.ep-row-pct')
+  };
+}
+
+function queueEpisodeUpload() {
+  const seriesTmdbId = document.getElementById('episodeSeriesId').value;
+  const season = parseInt(document.getElementById('episodeSeason').value) || 1;
+  const epNum  = parseInt(document.getElementById('episodeNum').value);
+  const epTitle = document.getElementById('episodeTitle').value.trim();
+  const fileName = document.getElementById('episodeFileName').value.trim();
+  const fileInput = document.getElementById('episodeFileInput');
+
+  if (!epNum) return toast('Enter episode number', 'error');
+  if (!fileName) return toast('Enter a file path', 'error');
+  if (!fileInput.files[0]) return toast('Select a video file', 'error');
+
+  const file = fileInput.files[0];
+  const label = `S${season}E${epNum}${epTitle ? ' — ' + epTitle : ''}`;
+  const ui = _epMakeRow(label);
+
+  _epPendingQueue.push({ seriesTmdbId, season, epNum, epTitle, fileName, file, ui });
+
+  document.getElementById('episodeNum').value = '';
+  document.getElementById('episodeTitle').value = '';
+  document.getElementById('episodeFileName').value = '';
+  document.getElementById('epSelFileName').textContent = '';
+  fileInput.value = '';
+
+  toast(`Queued ${label}`, 'info');
+  _epProcessQueue();
+}
+
+function _epProcessQueue() {
+  while (_epActiveCount < _epMaxConcurrent && _epPendingQueue.length > 0) {
+    const item = _epPendingQueue.shift();
+    _epActiveCount++;
+    _epUploadItem(item).finally(() => {
+      _epActiveCount--;
+      _epProcessQueue();
+    });
+  }
+}
+
+async function _epUploadItem({ seriesTmdbId, season, epNum, epTitle, fileName, file, ui }) {
+  const setStatus = (text, color) => { ui.statusEl.textContent = text; if (color) ui.statusEl.style.color = color; };
+  const setPct = (pct) => { ui.fillEl.style.width = pct + '%'; ui.pctEl.textContent = pct + '%'; };
+  try {
+    setStatus('Uploading...', 'var(--gold)');
+    const CHUNK_SIZE = 20 * 1024 * 1024;
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const updateProgress = (loaded) => setPct(Math.round(loaded / file.size * 100));
+
+    if (file.size <= CHUNK_SIZE) {
+      const urlRes = await fetch(`${ADMIN_API}/b2-upload-url?fileName=${encodeURIComponent(fileName)}`, {
+        headers: { 'X-Session-Token': sessionToken }
+      });
+      const b2 = await urlRes.json();
+      if (!b2.uploadUrl) throw new Error('Could not get upload URL from server');
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', b2.uploadUrl);
+        xhr.setRequestHeader('Authorization', b2.authorizationToken);
+        xhr.setRequestHeader('X-Bz-File-Name', encodeURIComponent(fileName));
+        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+        xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+        xhr.upload.onprogress = e => { if (e.lengthComputable) updateProgress(e.loaded); };
+        xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText || 'no response body'}`));
+        xhr.onerror = () => reject(new Error(`Network error during upload (status=${xhr.status})`));
+        xhr.send(file);
+      });
+    } else {
+      const startRes = await fetch(`${ADMIN_API}/b2-start-large-file`, {
+        method: 'POST',
+        headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName })
+      });
+      const startData = await startRes.json();
+      if (!startRes.ok) throw new Error(startData.error || 'Failed to start upload');
+      const { fileId, authorizationToken, apiUrl } = startData;
+      const partSha1Array = [];
+      let uploadedBytes = 0;
+      for (let i = 0; i < totalChunks; i++) {
+        const partNumber = i + 1;
+        const chunk = file.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, file.size));
+        let partUrl, partAuth;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const partUrlRes = await fetch(`${ADMIN_API}/b2-upload-part-url`, {
+              method: 'POST',
+              headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileId, authorizationToken, apiUrl })
+            });
+            const partUrlData = await partUrlRes.json();
+            partUrl = partUrlData.uploadUrl; partAuth = partUrlData.authorizationToken;
+            break;
+          } catch(e) { if (attempt === 2) throw e; await new Promise(r => setTimeout(r, 2000)); }
+        }
+        let sha1;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            sha1 = await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', partUrl);
+              xhr.setRequestHeader('Authorization', partAuth);
+              xhr.setRequestHeader('X-Bz-Part-Number', partNumber);
+              xhr.setRequestHeader('X-Bz-Content-Sha1', 'do_not_verify');
+              xhr.upload.onprogress = e => { if (e.lengthComputable) updateProgress(uploadedBytes + e.loaded); };
+              xhr.onload = () => {
+                if (xhr.status === 200) {
+                  const resp = JSON.parse(xhr.responseText);
+                  resolve((resp.contentSha1 || '').replace('unverified:', ''));
+                } else reject(new Error('Part failed: ' + xhr.status));
+              };
+              xhr.onerror = () => reject(new Error('Network error on part ' + partNumber));
+              xhr.send(chunk);
+            });
+            break;
+          } catch(e) { if (attempt === 2) throw e; await new Promise(r => setTimeout(r, 3000)); }
+        }
+        partSha1Array.push(sha1);
+        uploadedBytes += chunk.size;
+        updateProgress(uploadedBytes);
+      }
+      const finishRes = await fetch(`${ADMIN_API}/b2-finish-large-file`, {
+        method: 'POST',
+        headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, partSha1Array, authorizationToken, apiUrl })
+      });
+      const finishData = await finishRes.json();
+      if (!finishRes.ok) throw new Error(finishData.error || 'Failed to finish upload');
+    }
+
+    setPct(100);
+    setStatus('Saving to catalog...', 'var(--gold)');
+    const res = await fetch(`${ADMIN_API}/add-episode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ seriesKey: seriesTmdbId, season, episode: epNum, title: epTitle, fileName }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setStatus('✅ Added', '#4ade80');
+      toast(`S${season}E${epNum} added!`, 'success');
+      loadSeries();
+    } else throw new Error(data.error);
+  } catch(e) {
+    setStatus('❌ ' + e.message, '#f87171');
+  }
+}
+
+// ── USERS ─────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  document.getElementById('usersList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API}/users`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    document.getElementById('usersList').innerHTML = `
+      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${data.users.length} users</div>
+      ${data.users.map(u => {
+        const isPremium = u.subscribed;
+        const days = u.expiry ? Math.ceil((u.expiry-Date.now())/(1000*60*60*24)) : 0;
+        return `<div class="card">
+          <div style="font-size:1.4rem;flex-shrink:0;">👤</div>
+          <div class="card-info">
+            <div class="card-title">${esc(u.name)}</div>
+            <div class="card-meta">${esc(u.email)}</div>
+            <span class="pill ${isPremium?'pill-premium':'pill-free'}">${isPremium?`PREMIUM · ${days}d left`:'FREE'}</span>
+          </div>
+          <button class="btn btn-green btn-sm" onclick="openGrant('${u.id}','${esc(u.name)}')">🎁</button>
+        </div>`;
+      }).join('')}`;
+  } catch { document.getElementById('usersList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
+}
+
+function openGrant(userId, name) {
+  grantUserId = userId;
+  document.getElementById('grantUserName').textContent = `Granting access to: ${name}`;
+  document.getElementById('grantDays').value = '30';
+  document.getElementById('grantModal').classList.add('active');
+}
+function closeGrant() { document.getElementById('grantModal').classList.remove('active'); grantUserId = null; }
+
+const PLAN_DAYS = { daily:1, dailyplus:1, weekly:7, weeklyplus:7, monthly:30, monthlyplus:30, quarterly:90, yearly:365, premium:36500 };
+
+function onGrantPlanChange() {
+  const plan = document.getElementById('grantPlan').value;
+  if (PLAN_DAYS[plan]) document.getElementById('grantDays').value = PLAN_DAYS[plan];
+}
+
+async function confirmGrant() {
+  const plan = document.getElementById('grantPlan').value;
+  const days = parseInt(document.getElementById('grantDays').value);
+  if (!days||days<1) return toast('Enter valid number of days', 'error');
+  try {
+    const res = await fetch(`${ADMIN_API}/grant-sub`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ userId: grantUserId, days, plan }),
+    });
+    const data = await res.json();
+    if (data.success) { toast(`✅ ${data.name} granted ${plan} for ${days} days!`, 'success'); closeGrant(); loadUsers(); }
+    else throw new Error(data.error);
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
+
+// ── ADMINS ────────────────────────────────────────────────────────────────────
+async function loadAdmins() {
+  document.getElementById('adminsList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API}/admin-list`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    document.getElementById('adminsList').innerHTML = `
+      <div style="font-size:0.75rem;color:var(--gray);margin-bottom:0.8rem;">${data.admins.length} admins</div>
+      ${data.admins.map(a => `
+        <div class="card">
+          <div style="font-size:1.4rem;flex-shrink:0;">${a.superAdmin ? '👑' : '🔑'}</div>
+          <div class="card-info">
+            <div class="card-title">${esc(a.email)}</div>
+            <span class="pill ${a.superAdmin?'pill-super':'pill-admin'}">${a.superAdmin?'SUPER ADMIN':'ADMIN'}</span>
+          </div>
+          ${!a.superAdmin ? `<button class="btn btn-red btn-sm" onclick="removeAdmin('${esc(a.email)}')">Remove</button>` : ''}
+        </div>`).join('')}`;
+  } catch { document.getElementById('adminsList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
+}
+
+async function addAdmin() {
+  const email = document.getElementById('newAdminEmail').value.trim();
+  if (!email) return toast('Enter an email address', 'error');
+  try {
+    const res = await fetch(`${ADMIN_API}/admin-add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`✅ ${email} added as admin!`, 'success');
+      document.getElementById('newAdminEmail').value = '';
+      showStatus('adminAddStatus', `✅ ${email} can now access the admin panel`, 'success');
+      loadAdmins();
+    } else throw new Error(data.error);
+  } catch(e) { showStatus('adminAddStatus', '❌ '+e.message, 'error'); }
+}
+
+async function removeAdmin(email) {
+  if (!confirm(`Remove ${email} from admins?`)) return;
+  try {
+    const res = await fetch(`${ADMIN_API}/admin-remove`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (data.success) { toast(`Removed ${email}`, 'success'); loadAdmins(); }
+    else throw new Error(data.error);
+  } catch(e) { toast('Failed: '+e.message, 'error'); }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function showStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.className = `status ${type}`; el.style.display = 'block';
+}
+function toast(msg, type='') {
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+function esc(str) { return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
