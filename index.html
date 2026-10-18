@@ -2776,10 +2776,84 @@ function _movieCardHTML(m) {
       <button class="btn btn-sm" onclick="toggleEditMovieVJ('${esc(m._key)}')" style="background:var(--bg3);" title="Edit VJ">✏️</button>
       <button class="btn btn-sm" onclick="toggleEditMoviePart('${esc(m._key)}','${esc(m.part||'')}')" style="background:var(--bg3);" title="Edit Part">🎬</button>
       <button class="btn btn-sm" onclick="toggleMovie18Plus('${esc(m._key)}', ${!!m.is18Plus})" style="background:${m.is18Plus ? '#f87171' : 'var(--bg3)'};" title="Toggle 18+">🔞</button>
+      <button class="btn btn-sm" onclick="toggleEditMoviePoster('${esc(m._key)}')" style="background:var(--bg3);" title="Change poster">🖼</button>
       <button class="btn btn-red btn-sm" onclick="deleteMovie('${esc(m._key)}','${esc(m.title)}')">🗑</button>
       <div id="movieEditRow_${esc(m._key)}" style="display:none;flex:0 0 100%;width:100%;gap:0.4rem;align-items:center;flex-wrap:wrap;"></div>
       <div id="moviePartRow_${esc(m._key)}" style="display:none;flex:0 0 100%;width:100%;gap:0.4rem;align-items:center;"></div>
+      <div id="moviePosterRow_${esc(m._key)}" style="display:none;flex:0 0 100%;width:100%;flex-direction:column;gap:0.5rem;"></div>
     </div>`;
+}
+
+window._posterPick = {};
+
+function toggleEditMoviePoster(movieKey) {
+  const row = document.getElementById(`moviePosterRow_${movieKey}`);
+  if (!row) return;
+  if (row.style.display === 'flex') { row.style.display = 'none'; row.innerHTML = ''; return; }
+  const m = (typeof _allMoviesCache !== 'undefined' ? _allMoviesCache : []).find(x => x._key === movieKey) || {};
+  row.style.display = 'flex';
+  row.innerHTML = `
+    <div style="display:flex;gap:0.4rem;">
+      <input type="text" id="posterQ_${movieKey}" value="${esc(m.title || '')}" placeholder="Search TMDB..." autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1;font-size:16px;"/>
+      <button class="btn btn-gold btn-sm" onclick="searchMoviePoster('${movieKey}')">Search</button>
+    </div>
+    <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
+      <input type="file" id="posterFile_${movieKey}" accept="image/*" style="display:none;" onchange="uploadMoviePoster('${movieKey}', this)"/>
+      <button class="btn btn-sm" onclick="document.getElementById('posterFile_${movieKey}').click()">📁 Upload custom image</button>
+      <button class="btn btn-sm" onclick="toggleEditMoviePoster('${movieKey}')">✕ Close</button>
+      <span id="posterStatus_${movieKey}" style="font-size:0.72rem;color:#888;"></span>
+    </div>
+    <div class="poster-grid" id="posterPickGrid_${movieKey}"></div>`;
+  searchMoviePoster(movieKey);
+}
+
+async function searchMoviePoster(movieKey) {
+  const q = (document.getElementById(`posterQ_${movieKey}`)?.value || '').trim();
+  const grid = document.getElementById(`posterPickGrid_${movieKey}`);
+  const status = document.getElementById(`posterStatus_${movieKey}`);
+  if (!q || !grid) return;
+  status.textContent = '⏳ Searching...';
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(q)}&api_key=${TMDB_KEY}`);
+    const data = await res.json();
+    const results = (data.results || []).filter(r => r.poster_path);
+    window._posterPick[movieKey] = results.map(r => `https://image.tmdb.org/t/p/w300${r.poster_path}`);
+    status.textContent = results.length ? `${results.length} posters` : '❌ No posters found';
+    grid.innerHTML = results.map((r, i) => {
+      const year = r.release_date ? r.release_date.slice(0, 4) : '';
+      return `<div class="poster-opt" onclick="applyMoviePoster('${movieKey}', window._posterPick['${movieKey}'][${i}])">
+        <img src="https://image.tmdb.org/t/p/w342${r.poster_path}" loading="lazy"/>
+        <div class="poster-label">${esc(r.title)} ${year ? `<span style="color:#aaa">(${year})</span>` : ''}</div>
+      </div>`;
+    }).join('');
+  } catch (e) { status.textContent = '❌ Search failed'; }
+}
+
+async function uploadMoviePoster(movieKey, input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const status = document.getElementById(`posterStatus_${movieKey}`);
+  const m = (typeof _allMoviesCache !== 'undefined' ? _allMoviesCache : []).find(x => x._key === movieKey) || {};
+  status.textContent = '⏳ Uploading...';
+  try {
+    const url = await _uploadCustomPosterFile(file, m.tmdbId, 'movie');
+    if (!url) throw new Error('No URL returned');
+    await applyMoviePoster(movieKey, url);
+  } catch (e) { status.textContent = '❌ ' + e.message; }
+}
+
+async function applyMoviePoster(movieKey, posterUrl) {
+  if (!posterUrl) return;
+  try {
+    const res = await fetch(`${ADMIN_API}/edit-movie-poster`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ movieKey, poster: posterUrl }),
+    });
+    const data = await res.json();
+    if (data.success) { toast('Poster updated!', 'success'); loadMovies(); }
+    else throw new Error(data.error);
+  } catch (e) { toast('Failed: ' + e.message, 'error'); }
 }
 
 async function toggleMovie18Plus(movieKey, currentState) {
