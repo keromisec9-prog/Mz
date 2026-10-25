@@ -1796,6 +1796,7 @@ function studioRow(label, value) {
 
 async function loadStudio() {
   if (studioMode === 'content') return loadStudioContent();
+  if (studioMode === 'campaigns') return loadStudioCampaigns();
   studioRenderModes();
   const bar = document.getElementById('studioFilters');
   const box = document.getElementById('studioContent');
@@ -1843,7 +1844,7 @@ async function loadStudio() {
 function studioSetMode(m) { studioMode = m; loadStudio(); }
 
 function studioRenderModes() {
-  document.getElementById('studioModes').innerHTML = [['apps', 'Applications'], ['content', 'Content']].map(m => {
+  document.getElementById('studioModes').innerHTML = [['apps', 'Applications'], ['content', 'Content'], ['campaigns', 'Campaigns']].map(m => {
     const on = studioMode === m[0];
     return `<button onclick="studioSetMode('${m[0]}')" style="padding:0.5rem 1rem;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;border:1px solid ${on ? 'var(--gold)' : '#333'};background:${on ? 'var(--gold)' : 'transparent'};color:${on ? '#111' : 'var(--gray)'};">${m[1]}</button>`;
   }).join('');
@@ -1889,6 +1890,73 @@ async function loadStudioContent() {
   } catch (e) {
     box.innerHTML = '<div style="padding:1.5rem;color:#e06666;">Could not load submissions.</div>';
   }
+}
+
+const STUDIO_OBJECTIVES = { free_viewing: 'Free viewing', release_promotion: 'Release promotion', project_awareness: 'Project awareness' };
+const STUDIO_AFTER = { subscription: 'Subscription access', paid: 'Paid viewing', undecided: 'Undecided' };
+
+async function loadStudioCampaigns() {
+  studioRenderModes();
+  const bar = document.getElementById('studioFilters');
+  const box = document.getElementById('studioContent');
+  bar.innerHTML = [''].concat(Object.keys(STUDIO_LABELS)).map(s => {
+    const on = s === studioFilter;
+    return `<button onclick="studioSetFilter('${s}')" style="padding:0.4rem 0.8rem;border-radius:16px;font-size:0.75rem;cursor:pointer;border:1px solid ${on ? 'var(--gold)' : '#333'};background:${on ? '#2a2008' : 'transparent'};color:${on ? 'var(--gold)' : 'var(--gray)'};">${s ? STUDIO_LABELS[s] : 'All'}</button>`;
+  }).join('');
+  box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API}/studio/campaigns${studioFilter ? '?status=' + studioFilter : ''}`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    if (!res.ok) { box.innerHTML = `<div style="padding:1.5rem;color:#e06666;">${esc(data.error || 'Failed to load')}</div>`; return; }
+    const items = data.items || [];
+    if (!items.length) { box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No campaigns here.</div>'; return; }
+    box.innerHTML = items.map(a => {
+      const who = (a.applicant && a.applicant.name) || 'Unknown';
+      const col = STUDIO_COLORS[a.status] || '#888';
+      const start = a.start_date || '';
+      let end = '';
+      if (start) { const e = new Date(start + 'T00:00:00Z'); e.setUTCDate(e.getUTCDate() + (a.duration_days || 0)); end = e.toISOString().slice(0, 10); }
+      const btn = (st, label) => `<button onclick="studioCampaignReview('${a.id}','${st}')" style="padding:0.45rem 0.8rem;border-radius:8px;font-size:0.75rem;cursor:pointer;border:1px solid ${STUDIO_COLORS[st]};background:transparent;color:${STUDIO_COLORS[st]};">${label}</button>`;
+      return `
+      <div style="background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:1rem;margin-bottom:1rem;">
+        <div style="display:flex;justify-content:space-between;gap:0.5rem;align-items:flex-start;margin-bottom:0.6rem;">
+          <div><div style="font-weight:700;">${esc(a.title)}</div><div style="font-size:0.75rem;color:var(--gray);">${esc(STUDIO_OBJECTIVES[a.objective] || a.objective)} · ${esc(who)}</div></div>
+          <span style="font-size:0.7rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:12px;border:1px solid ${col};color:${col};white-space:nowrap;">${esc(STUDIO_LABELS[a.status] || a.status)}</span>
+        </div>
+        ${studioRow('Account email', a.applicant && a.applicant.email)}
+        ${studioRow('Content', (a.content_title || '') + (a.content_kind ? ' (' + (STUDIO_KINDS[a.content_kind] || a.content_kind) + ')' : ''))}
+        ${studioRow('Runs', start ? start + ' to ' + end + ' (' + a.duration_days + ' days)' : '')}
+        ${studioRow('Audience', a.audience === 'uganda' ? 'Uganda-focused' : 'All viewers')}
+        ${studioRow('Placements', (a.placements || []).join(', '))}
+        ${studioRow('After the campaign', STUDIO_AFTER[a.after_mode] || a.after_mode)}
+        ${studioRow('Description', a.description)}
+        ${a.objective === 'free_viewing' ? '<div style="font-size:0.72rem;color:var(--gray);margin-top:0.5rem;">Approving records the plan only. Set the title free yourself for these dates.</div>' : ''}
+        <textarea id="studio-pnote-${a.id}" rows="2" placeholder="Note to the creator (shown in their campaigns)" style="width:100%;margin-top:0.8rem;">${esc(a.staff_note || '')}</textarea>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.6rem;">${btn('in_review', 'In review')}${btn('action_required', 'Action required')}${btn('approved', 'Approve')}${btn('declined', 'Decline')}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = '<div style="padding:1.5rem;color:#e06666;">Could not load campaigns.</div>';
+  }
+}
+
+async function studioCampaignReview(id, status) {
+  const note = (document.getElementById('studio-pnote-' + id) || {}).value || '';
+  if ((status === 'action_required' || status === 'declined') && !note.trim()) {
+    toast('Add a note so the creator knows why');
+    return;
+  }
+  try {
+    const res = await fetch(`${ADMIN_API}/studio/campaign-review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ id, status, staffNote: note })
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Failed'); return; }
+    toast('Updated');
+    loadStudio();
+  } catch (e) { toast('Connection problem'); }
 }
 
 async function studioContentReview(id, status) {
