@@ -165,6 +165,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <div class="tab" onclick="switchTab('site')">🌐 Site</div>
     <div class="tab" onclick="switchTab('analytics')">📊 Analytics</div>
     <div class="tab" onclick="switchTab('vjs')">🎤 VJs</div>
+    <div class="tab" onclick="switchTab('studio')">Studio</div>
   </div>
   <div class="main">
 
@@ -550,6 +551,12 @@ input[type=text]::placeholder { color: var(--gray2); }
       </div>
     </div>
 
+    <!-- STUDIO -->
+    <div class="tab-content" id="tab-studio">
+      <div id="studioFilters" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;"></div>
+      <div id="studioContent"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
+    </div>
+
     <!-- ANALYTICS -->
     <div class="tab-content" id="tab-analytics">
       <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem;">
@@ -862,6 +869,7 @@ function switchTab(name) {
   if (name==='site') loadSiteSettings();
   if (name==='site') loadSitemapStatus();
   if (name==='analytics') loadAnalytics();
+  if (name==='studio') loadStudio();
 }
 
 let currentShortType = 'series';
@@ -1766,6 +1774,86 @@ const TMDB_GENRE_MAP = {
   10759: 'Action & Adventure', 10762: 'Kids', 10763: 'News', 10764: 'Reality',
   10765: 'Sci-Fi & Fantasy', 10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics',
 };
+
+// ── STUDIO ────────────────────────────────────────────────────────────────────
+let studioFilter = 'received';
+const STUDIO_LABELS = { received: 'Received', in_review: 'In review', action_required: 'Action required', approved: 'Approved', declined: 'Declined' };
+const STUDIO_TYPES = { vj: 'VJ / Creator', filmmaker: 'Filmmaker / Director', producer: 'Producer / Company' };
+const STUDIO_COLORS = { received: '#f0b429', in_review: '#f0b429', action_required: '#ff9a5a', approved: '#5fd28a', declined: '#e06666' };
+
+function studioSetFilter(s) { studioFilter = s; loadStudio(); }
+
+function studioRow(label, value) {
+  if (!value) return '';
+  const v = String(value);
+  const body = /^https?:\/\/[^\s"'<>]+$/i.test(v)
+    ? `<a href="${v}" target="_blank" rel="noopener" style="color:var(--gold);word-break:break-all;">${esc(v)}</a>`
+    : esc(v);
+  return `<div style="font-size:0.8rem;margin-bottom:0.3rem;"><span style="color:var(--gray);">${esc(label)}:</span> ${body}</div>`;
+}
+
+async function loadStudio() {
+  const bar = document.getElementById('studioFilters');
+  const box = document.getElementById('studioContent');
+  bar.innerHTML = [''].concat(Object.keys(STUDIO_LABELS)).map(s => {
+    const on = s === studioFilter;
+    return `<button onclick="studioSetFilter('${s}')" style="padding:0.4rem 0.8rem;border-radius:16px;font-size:0.75rem;cursor:pointer;border:1px solid ${on ? 'var(--gold)' : '#333'};background:${on ? '#2a2008' : 'transparent'};color:${on ? 'var(--gold)' : 'var(--gray)'};">${s ? STUDIO_LABELS[s] : 'All'}</button>`;
+  }).join('');
+  box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API}/studio/applications${studioFilter ? '?status=' + studioFilter : ''}`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    if (!res.ok) { box.innerHTML = `<div style="padding:1.5rem;color:#e06666;">${esc(data.error || 'Failed to load')}</div>`; return; }
+    const items = data.items || [];
+    if (!items.length) { box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No applications here.</div>'; return; }
+    box.innerHTML = items.map(a => {
+      const pr = a.profile || {};
+      const pf = a.portfolio || {};
+      const name = (a.applicant && a.applicant.name) || pr.fullName || 'Unknown';
+      const types = (a.types || []).map(t => STUDIO_TYPES[t] || t).join(' · ');
+      const col = STUDIO_COLORS[a.status] || '#888';
+      const d = a.created_at ? new Date(a.created_at.replace(' ', 'T')).toLocaleDateString() : '';
+      const pfRows = Object.keys(pf).map(k => studioRow(k.replace(/^(vj|film|prod)_/, '').replace(/_/g, ' '), pf[k])).join('');
+      const btn = (st, label) => `<button onclick="studioReview('${a.id}','${st}')" style="padding:0.45rem 0.8rem;border-radius:8px;font-size:0.75rem;cursor:pointer;border:1px solid ${STUDIO_COLORS[st]};background:transparent;color:${STUDIO_COLORS[st]};">${label}</button>`;
+      return `
+      <div style="background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:1rem;margin-bottom:1rem;">
+        <div style="display:flex;justify-content:space-between;gap:0.5rem;align-items:flex-start;margin-bottom:0.6rem;">
+          <div><div style="font-weight:700;">${esc(name)}</div><div style="font-size:0.75rem;color:var(--gray);">${esc(types)} · ${esc(d)}</div></div>
+          <span style="font-size:0.7rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:12px;border:1px solid ${col};color:${col};white-space:nowrap;">${esc(STUDIO_LABELS[a.status] || a.status)}</span>
+        </div>
+        ${studioRow('Account email', a.applicant && a.applicant.email)}
+        ${studioRow('Brand / company', pr.brand)}${studioRow('Role', pr.role)}
+        ${studioRow('Contact email', pr.email)}${studioRow('Phone', pr.phone)}
+        ${studioRow('Location', pr.location)}${studioRow('Experience', pr.experience)}
+        ${studioRow('Interests', (a.interests || []).join(', '))}
+        ${pfRows ? '<div style="margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid #2a2a2a;">' + pfRows + '</div>' : ''}
+        <textarea id="studio-note-${a.id}" rows="2" placeholder="Note to the applicant (shown in their My applications)" style="width:100%;margin-top:0.8rem;">${esc(a.staff_note || '')}</textarea>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.6rem;">${btn('in_review', 'In review')}${btn('action_required', 'Action required')}${btn('approved', 'Approve')}${btn('declined', 'Decline')}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = '<div style="padding:1.5rem;color:#e06666;">Could not load applications.</div>';
+  }
+}
+
+async function studioReview(id, status) {
+  const note = (document.getElementById('studio-note-' + id) || {}).value || '';
+  if ((status === 'action_required' || status === 'declined') && !note.trim()) {
+    toast('Add a note so the applicant knows why');
+    return;
+  }
+  try {
+    const res = await fetch(`${ADMIN_API}/studio/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify({ id, status, staffNote: note })
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Failed'); return; }
+    toast('Updated');
+    loadStudio();
+  } catch (e) { toast('Connection problem'); }
+}
 
 function _analyticsBarRow(label, count, maxCount, extra = '') {
   const pct = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
