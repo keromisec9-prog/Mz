@@ -2050,11 +2050,7 @@ async function loadStudioLibrary() {
       if (t.status === 'approved' && !isSeries) {
         h += `<div style="font-size:0.78rem;color:#5fd28a;margin-bottom:0.6rem;">Live on MyPicha+ as studiot_${esc(String(id))}</div>`;
       } else if (!isSeries && safe(t.video_key)) {
-        const genres = (typeof STUDIO_GENRES !== 'undefined' ? STUDIO_GENRES : []).map(g => {
-          const gp = studioGenrePair(g); const gid = gp[0];
-          const gn = gp[1];
-          return (gid == null || !gn) ? '' : `<label style="font-size:0.75rem;display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" class="lt-g-${id}" value="${gid}"> ${esc(String(gn))}</label>`;
-        }).join('');
+        const genres = STUDIO_GENRES.map(g => `<label style="font-size:0.75rem;display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" class="lt-g-${id}" value="${g}"> ${esc(TMDB_GENRE_MAP[g] || g)}</label>`).join('');  /* LABEL_FROM_CONTENT */
         h += '<div style="font-size:0.7rem;letter-spacing:1px;color:var(--gray);margin:0.2rem 0 0.4rem;">PUBLISH TO MYPICHA+</div>';
         h += `<input id="lt-vj-${id}" value="Studio" placeholder="VJ name" style="width:100%;margin-bottom:0.4rem;">`;
         h += `<input id="lt-year-${id}" type="number" value="${new Date().getFullYear()}" placeholder="Year" style="width:100%;margin-bottom:0.4rem;">`;
