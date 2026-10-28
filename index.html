@@ -1797,6 +1797,7 @@ function studioRow(label, value) {
 async function loadStudio() {
   if (studioMode === 'content') return loadStudioContent();
   if (studioMode === 'campaigns') return loadStudioCampaigns();
+  if (studioMode === 'library') return loadStudioLibrary();
   studioRenderModes();
   const bar = document.getElementById('studioFilters');
   const box = document.getElementById('studioContent');
@@ -1844,7 +1845,7 @@ async function loadStudio() {
 function studioSetMode(m) { studioMode = m; loadStudio(); }
 
 function studioRenderModes() {
-  document.getElementById('studioModes').innerHTML = [['apps', 'Applications'], ['content', 'Content'], ['campaigns', 'Campaigns']].map(m => {
+  document.getElementById('studioModes').innerHTML = [['apps', 'Applications'], ['content', 'Content'], ['campaigns', 'Campaigns'], ['library', 'Library']].map(m => {
     const on = studioMode === m[0];
     return `<button onclick="studioSetMode('${m[0]}')" style="padding:0.5rem 1rem;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;border:1px solid ${on ? 'var(--gold)' : '#333'};background:${on ? 'var(--gold)' : 'transparent'};color:${on ? '#111' : 'var(--gray)'};">${m[1]}</button>`;
   }).join('');
@@ -1989,6 +1990,114 @@ function studioFilesBlock(a) {
   }
   h += sb('Delete submission and files', `studioDeleteSub('${id}','${esc(String(a.title || '')).replace(/'/g, '')}')`, '#e06666');
   return h + '</div>';
+}
+
+let studioLibFilter = 'pending';
+let _studioLibItems = {};
+const STUDIO_LIB_LABELS = { pending: 'Pending', approved: 'Published', rejected: 'Rejected' };
+const STUDIO_LIB_COLORS = { pending: '#f0b429', approved: '#5fd28a', rejected: '#e06666' };
+function studioLibSetFilter(s) { studioLibFilter = s; loadStudioLibrary(); }
+
+async function loadStudioLibrary() {
+  studioRenderModes();
+  const bar = document.getElementById('studioFilters');
+  const box = document.getElementById('studioContent');
+  bar.innerHTML = [['pending', 'Pending'], ['approved', 'Published'], ['rejected', 'Rejected'], ['', 'All']].map(f => {
+    const on = f[0] === studioLibFilter;
+    return `<button onclick="studioLibSetFilter('${f[0]}')" style="padding:0.4rem 0.8rem;border-radius:16px;font-size:0.75rem;cursor:pointer;border:1px solid ${on ? 'var(--gold)' : '#333'};background:${on ? 'var(--gold)' : 'transparent'};color:${on ? '#111' : '#ccc'};">${f[1]}</button>`;
+  }).join('');
+  box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
+  try {
+    const res = await fetch(`${ADMIN_API}/studio/titles${studioLibFilter ? '?status=' + studioLibFilter : ''}`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    if (!res.ok) { box.innerHTML = `<div style="padding:1.5rem;color:#e06666;">${esc(data.error || 'Failed to load')}</div>`; return; }
+    const items = data.items || [];
+    _studioLibItems = {};
+    items.forEach(t => { _studioLibItems[String(t.id)] = t; });
+    if (!items.length) { box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No library uploads here.</div>'; return; }
+    const safe = k => typeof k === 'string' && /^studio\/[\w\/.-]+$/.test(k);
+    const sb = (label, fn, color) => `<button onclick="${fn}" style="padding:0.45rem 0.8rem;border-radius:8px;font-size:0.75rem;cursor:pointer;border:1px solid ${color};background:transparent;color:${color};">${label}</button>`;
+    box.innerHTML = items.map(t => {
+      const id = t.id;
+      const who = (t.applicant && t.applicant.name) || 'Unknown';
+      const col = STUDIO_LIB_COLORS[t.status] || '#888';
+      const d = t.created_at ? new Date(String(t.created_at).replace(' ', 'T')).toLocaleDateString() : '';
+      const isSeries = t.kind === 'series';
+      let h = `<div style="background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:1rem;margin-bottom:1rem;">`;
+      h += `<div style="display:flex;justify-content:space-between;gap:0.5rem;align-items:flex-start;margin-bottom:0.6rem;"><div><div style="font-weight:700;">${esc(t.title)}</div><div style="font-size:0.75rem;color:var(--gray);">${isSeries ? 'Series' : 'Movie'} · ${esc(who)} · ${esc(d)}</div></div><span style="font-size:0.7rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:12px;border:1px solid ${col};color:${col};white-space:nowrap;">${esc(STUDIO_LIB_LABELS[t.status] || t.status)}</span></div>`;
+      h += studioRow('Account email', t.applicant && t.applicant.email);
+      h += studioRow('Genre', t.genre);
+      h += studioRow('Synopsis', t.synopsis);
+      if (isSeries) h += studioRow('Episodes', String(t.episodeCount || 0));
+      h += '<div style="margin-top:0.8rem;padding:0.8rem;border:1px solid #2a2a2a;border-radius:10px;background:#111;">';
+      const hasF = safe(t.video_key) || safe(t.poster_key);
+      if (hasF) {
+        h += '<div style="font-size:0.7rem;letter-spacing:1px;color:var(--gray);margin-bottom:0.5rem;">UPLOADED FILES</div><div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.6rem;">';
+        if (safe(t.video_key)) h += sb('Watch video', `studioPreview('video','${t.video_key}')`, 'var(--gold)');
+        if (safe(t.poster_key)) h += sb('View poster', `studioPreview('image','${t.poster_key}')`, 'var(--gold)');
+        h += '</div>';
+      }
+      if (t.status === 'approved' && !isSeries) {
+        h += `<div style="font-size:0.78rem;color:#5fd28a;margin-bottom:0.6rem;">Live on MyPicha+ as studiot_${esc(String(id))}</div>`;
+      } else if (!isSeries && safe(t.video_key)) {
+        const genres = (typeof STUDIO_GENRES !== 'undefined' ? STUDIO_GENRES : []).map(g => {
+          const gid = Array.isArray(g) ? g[0] : (g.id != null ? g.id : g.value);
+          const gn = Array.isArray(g) ? g[1] : (g.name || g.label);
+          return `<label style="font-size:0.75rem;display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" class="lt-g-${id}" value="${gid}"> ${esc(String(gn))}</label>`;
+        }).join('');
+        h += '<div style="font-size:0.7rem;letter-spacing:1px;color:var(--gray);margin:0.2rem 0 0.4rem;">PUBLISH TO MYPICHA+</div>';
+        h += `<input id="lt-vj-${id}" value="Studio" placeholder="VJ name" style="width:100%;margin-bottom:0.4rem;">`;
+        h += `<input id="lt-year-${id}" type="number" value="${new Date().getFullYear()}" placeholder="Year" style="width:100%;margin-bottom:0.4rem;">`;
+        h += `<div style="display:flex;flex-wrap:wrap;gap:0.3rem 0.8rem;margin-bottom:0.4rem;">${genres}</div>`;
+        h += `<div style="display:flex;gap:1rem;margin-bottom:0.4rem;font-size:0.78rem;"><label style="display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" id="lt-18-${id}"> 18+</label><label style="display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" id="lt-ug-${id}"> Ugandan</label></div>`;
+        h += `<textarea id="lt-ov-${id}" rows="2" placeholder="Overview (uses the creator's synopsis if empty)" style="width:100%;margin-bottom:0.5rem;"></textarea>`;
+        h += '<div style="margin-bottom:0.6rem;">' + sb('Publish to MyPicha+', `studioLibPublish('${id}')`, '#5fd28a') + '</div>';
+      } else if (isSeries) {
+        h += '<div style="font-size:0.78rem;color:var(--gray);margin-bottom:0.6rem;">Series publishing is not available yet.</div>';
+      }
+      h += `<textarea id="lt-note-${id}" rows="2" placeholder="Note to the creator (required to reject)" style="width:100%;margin-bottom:0.5rem;">${esc(t.staff_note || '')}</textarea>`;
+      h += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">' + sb('Reject', `studioLibReject('${id}')`, '#ff9a5a') + sb('Delete title and files', `studioLibDelete('${id}')`, '#e06666') + '</div>';
+      h += '</div></div>';
+      return h;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = '<div style="padding:1.5rem;color:#e06666;">Could not load library uploads.</div>';
+  }
+}
+
+async function studioLibPost(path, body, okMsg) {
+  try {
+    const res = await fetch(`${ADMIN_API}/studio/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Failed'); return; }
+    toast(okMsg);
+    loadStudio();
+  } catch (e) { toast('Connection problem'); }
+}
+
+function studioLibPublish(id) {
+  const g = Array.from(document.querySelectorAll('.lt-g-' + id + ':checked')).map(x => parseInt(x.value, 10)).filter(n => n > 0);
+  const v = n => (document.getElementById(n + id) || {});
+  if (!g.length) { toast('Pick at least one genre'); return; }
+  if (!confirm('Publish this movie to MyPicha+ now?')) return;
+  studioLibPost('title-publish', { id, vj: (v('lt-vj-').value || '').trim(), year: v('lt-year-').value, genreIds: g, is18Plus: !!v('lt-18-').checked, isUgandan: !!v('lt-ug-').checked, overview: (v('lt-ov-').value || '').trim() }, 'Published');
+}
+
+function studioLibReject(id) {
+  const note = ((document.getElementById('lt-note-' + id) || {}).value || '').trim();
+  if (!note) { toast('Add a note so the creator knows what to fix'); return; }
+  if (!confirm('Reject this title? If it is live, it will be taken off MyPicha+.')) return;
+  studioLibPost('title-reject', { id, staffNote: note }, 'Rejected');
+}
+
+function studioLibDelete(id) {
+  const t = _studioLibItems[String(id)] || {};
+  if (!confirm('Permanently delete "' + (t.title || 'this title') + '"?\n\nThis removes it from MyPicha+ and deletes its files and episodes from storage. This cannot be undone.')) return;
+  studioLibPost('title-delete', { id }, 'Deleted');
 }
 
 async function studioPreview(kind, key) {
