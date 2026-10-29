@@ -2047,9 +2047,9 @@ async function loadStudioLibrary() {
         if (safe(t.poster_key)) h += sb('View poster', `studioPreview('image','${t.poster_key}')`, 'var(--gold)');
         h += '</div>';
       }
-      if (t.status === 'approved' && !isSeries) {
+      if (t.status === 'approved') {
         h += `<div style="font-size:0.78rem;color:#5fd28a;margin-bottom:0.6rem;">Live on MyPicha+ as studiot_${esc(String(id))}</div>`;
-      } else if (!isSeries && safe(t.video_key)) {
+      } else if (isSeries ? (t.episodeCount || 0) > 0 : safe(t.video_key)) {
         const genres = STUDIO_GENRES.map(g => `<label style="font-size:0.75rem;display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" class="lt-g-${id}" value="${g}"> ${esc(TMDB_GENRE_MAP[g] || g)}</label>`).join('');  /* LABEL_FROM_CONTENT */
         h += '<div style="font-size:0.7rem;letter-spacing:1px;color:var(--gray);margin:0.2rem 0 0.4rem;">PUBLISH TO MYPICHA+</div>';
         h += `<input id="lt-vj-${id}" value="Studio" placeholder="VJ name" style="width:100%;margin-bottom:0.4rem;">`;
@@ -2059,7 +2059,7 @@ async function loadStudioLibrary() {
         h += `<textarea id="lt-ov-${id}" rows="2" placeholder="Overview (uses the creator's synopsis if empty)" style="width:100%;margin-bottom:0.5rem;"></textarea>`;
         h += '<div style="margin-bottom:0.6rem;">' + sb('Publish to MyPicha+', `studioLibPublish('${id}')`, '#5fd28a') + '</div>';
       } else if (isSeries) {
-        h += '<div style="font-size:0.78rem;color:var(--gray);margin-bottom:0.6rem;">Series publishing is not available yet.</div>';
+        h += '<div style="font-size:0.78rem;color:var(--gray);margin-bottom:0.6rem;">Add at least one episode before this series can be published.</div>';
       }
       h += `<textarea id="lt-note-${id}" rows="2" placeholder="Note to the creator (required to reject)" style="width:100%;margin-bottom:0.5rem;">${esc(t.staff_note || '')}</textarea>`;
       h += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">' + sb('Reject', `studioLibReject('${id}')`, '#ff9a5a') + sb('Delete title and files', `studioLibDelete('${id}')`, '#e06666') + '</div>';
@@ -2089,7 +2089,7 @@ function studioLibPublish(id) {
   const g = Array.from(document.querySelectorAll('.lt-g-' + id + ':checked')).map(x => parseInt(x.value, 10)).filter(n => n > 0);
   const v = n => (document.getElementById(n + id) || {});
   if (!g.length) { toast('Pick at least one genre'); return; }
-  if (!confirm('Publish this movie to MyPicha+ now?')) return;
+  if (!confirm('Publish this ' + (((_studioLibItems[String(id)] || {}).kind === 'series') ? 'series' : 'movie') + ' to MyPicha+ now?')) return;
   studioLibPost('title-publish', { id, vj: (v('lt-vj-').value || '').trim(), year: v('lt-year-').value, genreIds: g, is18Plus: !!v('lt-18-').checked, isUgandan: !!v('lt-ug-').checked, overview: (v('lt-ov-').value || '').trim() }, 'Published');
 }
 
