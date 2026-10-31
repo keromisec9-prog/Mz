@@ -2043,7 +2043,25 @@ async function loadStudioLibrary() {
       h += studioRow('Account email', t.applicant && t.applicant.email);
       h += studioRow('Genre', t.genre);
       h += studioRow('Synopsis', t.synopsis);
-      if (isSeries) h += studioRow('Episodes', String(t.episodeCount || 0));
+      if (isSeries) {
+        h += studioRow('Episodes', String(t.episodeCount || 0));
+        const eps = Array.isArray(t.episodes) ? t.episodes : [];
+        if (eps.length) {
+          h += '<div style="margin-top:0.6rem;padding:0.6rem;border:1px solid #2a2a2a;border-radius:10px;background:#111;"><div style="font-size:0.7rem;letter-spacing:1px;color:var(--gray);margin-bottom:0.4rem;">EPISODES</div>';
+          h += eps.map(ep => {
+            const ec = STUDIO_LIB_COLORS[ep.status] || '#888';
+            let r = '<div style="border-top:1px solid #222;padding:0.55rem 0;">';
+            r += '<div style="font-size:0.82rem;">S' + ep.season + 'E' + ep.number + (ep.name ? ' \u00b7 ' + esc(ep.name) : '') + ' <span style="font-size:0.68rem;color:' + ec + ';margin-left:0.3rem;">' + esc(ep.status || '') + '</span></div>';
+            r += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.4rem;">';
+            if (safe(ep.video_key)) r += sb('Watch', "studioPreview('video','" + ep.video_key + "')", 'var(--gold)');
+            if (t.status === 'approved' && ep.status !== 'approved') r += sb('Approve', 'studioEpAct(\'publish\',' + Number(ep.id) + ')', '#5fd28a');
+            r += sb('Reject', 'studioEpAct(\'reject\',' + Number(ep.id) + ')', '#e0a63c');
+            r += sb('Delete', 'studioEpAct(\'delete\',' + Number(ep.id) + ')', '#e06666');
+            return r + '</div></div>';
+          }).join('');
+          h += '</div>';
+        }
+      }
       h += '<div style="margin-top:0.8rem;padding:0.8rem;border:1px solid #2a2a2a;border-radius:10px;background:#111;">';
       const hasF = safe(t.video_key) || safe(t.poster_key);
       if (hasF) {
