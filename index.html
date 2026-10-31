@@ -555,6 +555,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <div class="tab-content" id="tab-studio">
       <div id="studioModes" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;"></div>
       <div id="studioFilters" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;"></div>
+      <div id="studioNewEps"></div>
       <div id="studioContent"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
     </div>
 
@@ -1795,6 +1796,7 @@ function studioRow(label, value) {
 }
 
 async function loadStudio() {
+  studioHideNewEps();
   if (studioMode === 'content') return loadStudioContent();
   if (studioMode === 'campaigns') return loadStudioCampaigns();
   if (studioMode === 'library') return loadStudioLibrary();
@@ -1855,6 +1857,7 @@ const STUDIO_KINDS = { movie: 'Movie', series: 'Series', trailer: 'Trailer', pro
 const STUDIO_DETAIL_LABELS = { genre: 'Genre', releaseStatus: 'Release status', releaseDate: 'Expected release', role: 'Role', synopsis: 'Synopsis', trailerLink: 'Trailer / preview', posterLink: 'Poster', portfolioLink: 'Portfolio', notes: 'Notes' };
 
 async function loadStudioContent() {
+  studioHideNewEps();
   studioRenderModes();
   const bar = document.getElementById('studioFilters');
   const box = document.getElementById('studioContent');
@@ -1898,6 +1901,7 @@ const STUDIO_OBJECTIVES = { free_viewing: 'Free viewing', release_promotion: 'Re
 const STUDIO_AFTER = { subscription: 'Subscription access', paid: 'Paid viewing', undecided: 'Undecided' };
 
 async function loadStudioCampaigns() {
+  studioHideNewEps();
   studioRenderModes();
   const bar = document.getElementById('studioFilters');
   const box = document.getElementById('studioContent');
@@ -2010,6 +2014,7 @@ function studioLibSetFilter(s) { studioLibFilter = s; loadStudioLibrary(); }
 
 async function loadStudioLibrary() {
   studioRenderModes();
+  studioLoadNewEps();
   const bar = document.getElementById('studioFilters');
   const box = document.getElementById('studioContent');
   bar.innerHTML = [['pending', 'Pending'], ['approved', 'Published'], ['rejected', 'Rejected'], ['', 'All']].map(f => {
@@ -2068,6 +2073,61 @@ async function loadStudioLibrary() {
     }).join('');
   } catch (e) {
     box.innerHTML = '<div style="padding:1.5rem;color:#e06666;">Could not load library uploads.</div>';
+  }
+}
+
+
+function studioHideNewEps() { const b = document.getElementById('studioNewEps'); if (b) b.innerHTML = ''; }
+
+async function studioLoadNewEps() {
+  const box = document.getElementById('studioNewEps');
+  if (!box) return;
+  try {
+    const res = await fetch(`${ADMIN_API}/studio/pending-episodes`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    const items = (res.ok && data.items) || [];
+    if (!items.length) { box.innerHTML = ''; return; }
+    const safe = k => typeof k === 'string' && /^studio\/[\w\/.-]+$/.test(k);
+    const sb = (label, fn, color) => `<button onclick="${fn}" style="padding:0.45rem 0.8rem;border-radius:8px;font-size:0.75rem;cursor:pointer;border:1px solid ${color};background:transparent;color:${color};">${label}</button>`;
+    let h = `<div style="background:#1a1608;border:1px solid var(--gold);border-radius:12px;padding:1rem;margin-bottom:1rem;">`;
+    h += `<div style="font-weight:700;color:var(--gold);margin-bottom:0.6rem;">New episodes waiting (${items.length})</div>`;
+    h += items.map(e => {
+      const label = 'S' + e.season + 'E' + e.number + (e.name ? ' \u00b7 ' + esc(e.name) : '');
+      let r = `<div style="border-top:1px solid #2a2a2a;padding:0.7rem 0;">`;
+      r += `<div style="font-size:0.85rem;font-weight:600;">${esc(e.seriesTitle || 'Series')}</div>`;
+      r += `<div style="font-size:0.78rem;color:var(--gray);margin:0.15rem 0 0.5rem;">${label}${e.creator ? ' \u00b7 by ' + esc(e.creator) : ''}</div>`;
+      r += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
+      if (safe(e.videoKey)) r += sb('Watch', `studioPreview('video','${e.videoKey}')`, 'var(--gold)');
+      r += sb('Approve', `studioEpAct('publish',${Number(e.id)})`, '#5fd28a');
+      r += sb('Reject', `studioEpAct('reject',${Number(e.id)})`, '#e0a63c');
+      r += sb('Delete', `studioEpAct('delete',${Number(e.id)})`, '#e06666');
+      return r + '</div></div>';
+    }).join('');
+    box.innerHTML = h + '</div>';
+  } catch (e) { box.innerHTML = ''; }
+}
+
+async function studioEpPost(path, body, okMsg) {
+  try {
+    const res = await fetch(`${ADMIN_API}/studio/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast(data.error || 'Failed'); return; }
+    toast(okMsg);
+    loadStudioLibrary();
+  } catch (e) { toast('Connection problem'); }
+}
+
+function studioEpAct(kind, id) {
+  if (kind === 'publish') {
+    if (!confirm('Add this episode to the live series now?')) return;
+    studioEpPost('episode-publish', { id }, 'Episode published');
+  } else if (kind === 'reject') {
+    const note = (prompt('Note to the creator (what to fix):') || '').trim();
+    if (!note) { toast('Add a note so the creator knows what to fix'); return; }
+    studioEpPost('episode-reject', { id, staffNote: note }, 'Episode rejected');
+  } else if (kind === 'delete') {
+    if (!confirm('Permanently delete this episode and its file? This cannot be undone.')) return;
+    studioEpPost('episode-delete', { id }, 'Episode deleted');
   }
 }
 
