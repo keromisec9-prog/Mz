@@ -556,6 +556,7 @@ input[type=text]::placeholder { color: var(--gray2); }
       <div id="studioModes" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;"></div>
       <div id="studioFilters" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;"></div>
       <div id="studioNewEps"></div>
+      <div id="studioNewArt"></div>
       <div id="studioContent"><div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div></div>
     </div>
 
@@ -2014,7 +2015,7 @@ function studioLibSetFilter(s) { studioLibFilter = s; loadStudioLibrary(); }
 
 async function loadStudioLibrary() {
   studioRenderModes();
-  studioLoadNewEps();
+  studioLoadNewEps(); studioLoadNewArt();
   const bar = document.getElementById('studioFilters');
   const box = document.getElementById('studioContent');
   bar.innerHTML = [['pending', 'Pending'], ['approved', 'Published'], ['rejected', 'Rejected'], ['', 'All']].map(f => {
@@ -2095,7 +2096,7 @@ async function loadStudioLibrary() {
 }
 
 
-function studioHideNewEps() { const b = document.getElementById('studioNewEps'); if (b) b.innerHTML = ''; }
+function studioHideNewEps() { ['studioNewEps','studioNewArt'].forEach(i => { const b = document.getElementById(i); if (b) b.innerHTML = ''; }); }
 
 async function studioLoadNewEps() {
   const box = document.getElementById('studioNewEps');
@@ -2146,6 +2147,39 @@ function studioEpAct(kind, id) {
   } else if (kind === 'delete') {
     if (!confirm('Permanently delete this episode and its file? This cannot be undone.')) return;
     studioEpPost('episode-delete', { id }, 'Episode deleted');
+  }
+}
+
+
+window._studioArt = [];
+async function studioLoadNewArt() {
+  const box = document.getElementById('studioNewArt');
+  if (!box) return;
+  try {
+    const res = await fetch(`${ADMIN_API}/studio/pending-art`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    const items = (res.ok && data.items) || [];
+    window._studioArt = items;
+    if (!items.length) { box.innerHTML = ''; return; }
+    const sb = (label, fn, color) => `<button onclick="${fn}" style="padding:0.45rem 0.8rem;border-radius:8px;font-size:0.75rem;cursor:pointer;border:1px solid ${color};background:transparent;color:${color};">${label}</button>`;
+    let h = `<div style="background:#1a1608;border:1px solid var(--gold);border-radius:12px;padding:1rem;margin-bottom:1rem;">`;
+    h += `<div style="font-weight:700;color:var(--gold);margin-bottom:0.6rem;">Poster changes waiting (${items.length})</div>`;
+    h += items.map((a, i) => `<div style="border-top:1px solid #2a2a2a;padding:0.7rem 0;"><div style="font-size:0.85rem;font-weight:600;">${esc(a.title || 'Title')}</div><div style="font-size:0.78rem;color:var(--gray);margin:0.15rem 0 0.5rem;">${a.posterKey ? 'Uploaded poster' : 'TMDB artwork'}${a.creator ? ' \u00b7 by ' + esc(a.creator) : ''}</div><div style="display:flex;flex-wrap:wrap;gap:0.5rem;">${sb('View', `studioArtAct('view',${i})`, 'var(--gold)')}${sb('Approve', `studioArtAct('approve',${i})`, '#5fd28a')}${sb('Reject', `studioArtAct('reject',${i})`, '#e06666')}</div></div>`).join('');
+    box.innerHTML = h + '</div>';
+  } catch (e) { box.innerHTML = ''; }
+}
+function studioArtAct(kind, i) {
+  const a = (window._studioArt || [])[i];
+  if (!a) return;
+  if (kind === 'view') {
+    if (a.posterKey && /^studio\/[\w\/.-]+$/.test(a.posterKey)) studioPreview('image', a.posterKey);
+    else if (a.posterPath) window.open('https://image.tmdb.org/t/p/w500' + a.posterPath, '_blank');
+  } else if (kind === 'approve') {
+    if (!confirm('Replace the live poster with this one?')) return;
+    studioEpPost('art-approve', { userId: a.userId, titleId: a.titleId }, 'Poster updated');
+  } else if (kind === 'reject') {
+    if (!confirm('Reject this poster change? The current poster stays.')) return;
+    studioEpPost('art-reject', { userId: a.userId, titleId: a.titleId }, 'Poster change rejected');
   }
 }
 
