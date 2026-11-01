@@ -3567,9 +3567,110 @@ function delWithUndo(id, label, run) {
   }, 1000);
   btn.onclick = function () { clearInterval(timer); row.remove(); delete _pendDel[id]; toast('Delete cancelled', 'success'); };
 }
+// ---- batched deletes: queue locally, send many in one request ----
+var _DQ = 'delq_v1', _dqTimer = null, _dqBusy = false, _dqLeftTries = 0;
+function _dqGet() { try { return JSON.parse(localStorage.getItem(_DQ) || '[]'); } catch (e) { return []; } }
+function _dqSet(a) { try { localStorage.setItem(_DQ, JSON.stringify(a)); } catch (e) {} }
+function _dqPaint() {
+  var q = _dqGet(), row = document.getElementById('dqRow');
+  if (!q.length) { if (row) row.remove(); return; }
+  var box = document.getElementById('undoBox');
+  if (!box) {
+    box = document.createElement('div'); box.id = 'undoBox';
+    box.style.cssText = 'position:fixed;left:0;right:0;bottom:12px;z-index:99999;display:flex;flex-direction:column;gap:8px;padding:0 12px;pointer-events:none';
+    document.body.appendChild(box);
+  }
+  if (!row) {
+    row = document.createElement('div'); row.id = 'dqRow';
+    row.style.cssText = 'pointer-events:none;background:#1c1c1c;border:1px solid #444;border-radius:10px;padding:10px 12px;color:#bbb;font-size:13px';
+    box.appendChild(row);
+  }
+  row.textContent = 'Erasing ' + q.length + ' item(s) from storage...';
+}
+function _hideRow(fn, key) {
+  var bs = document.querySelectorAll('button[onclick^="' + fn + '("]');
+  for (var i = 0; i < bs.length; i++) {
+    if ((bs[i].getAttribute('onclick') || '').indexOf(fn + "('" + key + "'") === 0) {
+      var c = bs[i].closest('.card');
+      if (c) { c.style.display = 'none'; return true; }
+    }
+  }
+  return false;
+}
+function queueDelete(item, label, kind) {
+  var hid = kind === 'movie' ? _hideRow('deleteMovie', item.key) : kind === 'series' ? _hideRow('deleteSeries', item.key) : true;
+  item.lbl = label; item.r = hid ? 0 : 1;
+  var q = _dqGet(); q.push(item); _dqSet(q);
+  toast('Deleted "' + label + '". Erasing files in the background', 'success');
+  _dqPaint();
+  clearTimeout(_dqTimer); _dqTimer = setTimeout(flushDeletes, 5000);
+}
+async function flushDeletes() {
+  if (_dqBusy) return;
+  if (typeof sessionToken === 'undefined' || !sessionToken) return;
+  var q = _dqGet();
+  if (!q.length) { _dqPaint(); return; }
+  _dqBusy = true; _dqPaint();
+  var sent = q.length, items = q.slice();
+  try {
+    var res = await fetch(ADMIN_API + '/delete-batch', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken }, body: JSON.stringify({ items: items }) });
+    var data = await res.json();
+    if (!data.success) throw new Error(data.error || ('HTTP ' + res.status));
+    var cur = _dqGet(); cur.splice(0, sent);
+    var left = data.left || [];
+    if (left.length) {
+      _dqLeftTries++;
+      if (_dqLeftTries > 5) { toast(left.length + ' file(s) could not be erased and stay in storage', 'error'); _dqLeftTries = 0; }
+      else cur.unshift({ t: 'files', files: left });
+    } else _dqLeftTries = 0;
+    _dqSet(cur);
+    var failed = (data.results || []).filter(function (r) { return !r.ok; });
+    failed.forEach(function (r) { toast('Not deleted: ' + ((items[r.i] && items[r.i].lbl) || 'item') + ' (' + (r.error || 'error') + ')', 'error'); });
+    if (data.filesRemoved) toast(data.filesRemoved + ' file(s) erased from storage' + (left.length ? ', ' + left.length + ' more queued' : ''), 'success');
+    var redo = failed.length > 0 || items.some(function (x) { return x.r; });
+    if (redo && items.some(function (x) { return x.t === 'movie'; }) && typeof loadMovies === 'function') loadMovies();
+    if (redo && items.some(function (x) { return x.t === 'series' || x.t === 'episode' || x.t === 'part'; }) && typeof loadSeries === 'function') loadSeries();
+    if (cur.length) { clearTimeout(_dqTimer); _dqTimer = setTimeout(flushDeletes, 1500); }
+  } catch (e) {
+    clearTimeout(_dqTimer); _dqTimer = setTimeout(flushDeletes, 20000);
+  }
+  _dqBusy = false; _dqPaint();
+}
+setTimeout(flushDeletes, 4000);
+setInterval(flushDeletes, 60000);
+function _epCtx(seriesKey, epKey) {
+  var s = (window._seriesDataCache || []).find(function (x) { return x._key === seriesKey; });
+  var ep = s && s.episodes && s.episodes[epKey];
+  return { s: s, ep: ep, label: (s ? s.title + ' ' : '') + ((ep && ep.title) || epKey) };
+}
+function _epRerender(seriesKey) { toggleEpisodesView(seriesKey); toggleEpisodesView(seriesKey); }
+function deleteEpisode(seriesKey, epKey) {
+  var c = _epCtx(seriesKey, epKey);
+  if (!confirm('Delete "' + c.label + '"? All its video files are erased from storage after a 30 second countdown, and you can undo until then.')) return;
+  delWithUndo('e:' + seriesKey + ':' + epKey, c.label, function () {
+    if (c.s && c.s.episodes) delete c.s.episodes[epKey];
+    queueDelete({ t: 'episode', key: seriesKey, ep: epKey }, c.label, 'episode');
+    _epRerender(seriesKey);
+  });
+}
+function deleteEpisodePart(seriesKey, epKey, part) {
+  var c = _epCtx(seriesKey, epKey), lbl = c.label + ' part ' + part;
+  if (!confirm('Delete ' + lbl + '? Its video file is erased from storage after a 30 second countdown, and you can undo until then.')) return;
+  delWithUndo('p:' + seriesKey + ':' + epKey + ':' + part, lbl, function () {
+    var ep = c.ep;
+    if (ep && ep.parts) {
+      ep.parts = ep.parts.filter(function (x) { return Number(x.part) !== Number(part); });
+      ep.parts.forEach(function (x, n) { x.part = n + 1; if (!x.label || /^Part \d+$/.test(x.label)) x.label = 'Part ' + (n + 1); });
+      if (ep.parts.length) ep.fileName = ep.parts[0].fileName;
+      if (ep.parts.length < 2) delete ep.parts;
+    }
+    queueDelete({ t: 'part', key: seriesKey, ep: epKey, part: part }, lbl, 'part');
+    _epRerender(seriesKey);
+  });
+}
 function deleteMovie(movieKey, title) {
   if (!confirm(`Delete "${title}"? Its video file is erased from storage after a 30 second countdown, and you can undo until then.`)) return;
-  delWithUndo('m:' + movieKey, title, function () { _deleteMovieNow(movieKey, title); });
+  delWithUndo('m:' + movieKey, title, function () { queueDelete({ t: 'movie', key: movieKey }, title, 'movie'); });
 }
 async function _deleteMovieNow(movieKey, title) {
   try {
@@ -3769,7 +3870,7 @@ function toggleEpisodesView(seriesKey) {
   container.innerHTML = episodes.map(([epKey, ep]) => `
     <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg3);border-radius:6px;padding:0.4rem 0.6rem;font-size:0.78rem;">
       <span style="flex:1;">S${ep.season}E${ep.episode}${ep.title ? ' — ' + esc(ep.title) : ''}${ep.is18Plus ? ' <span style="color:#f87171;font-size:0.68rem;border:1px solid #f87171;border-radius:4px;padding:0.02rem 0.25rem;">18+</span>' : ''}</span>
-      <button class="btn btn-sm" style="background:${ep.is18Plus ? '#f87171' : 'var(--bg2)'};padding:0.2rem 0.5rem;font-size:0.75rem;" onclick="toggleEpisode18Plus('${seriesKey}','${epKey}', ${!!ep.is18Plus})" title="Toggle 18+">🔞</button>
+      ${(ep.parts && ep.parts.length > 1) ? ep.parts.map(function (pp) { return '<button class="btn btn-red btn-sm" style="padding:0.2rem 0.4rem;font-size:0.7rem;" onclick="deleteEpisodePart(\'' + seriesKey + '\',\'' + epKey + '\',' + pp.part + ')">🗑P' + pp.part + '</button>'; }).join('') : ''}<button class="btn btn-red btn-sm" style="padding:0.2rem 0.5rem;font-size:0.75rem;" onclick="deleteEpisode('${seriesKey}','${epKey}')">🗑</button><button class="btn btn-sm" style="background:${ep.is18Plus ? '#f87171' : 'var(--bg2)'};padding:0.2rem 0.5rem;font-size:0.75rem;" onclick="toggleEpisode18Plus('${seriesKey}','${epKey}', ${!!ep.is18Plus})" title="Toggle 18+">🔞</button>
     </div>`).join('');
   container.style.display = 'flex';
 }
@@ -3794,7 +3895,7 @@ async function toggleEpisode18Plus(seriesKey, epKey, currentState) {
 
 function deleteSeries(tmdbId, title) {
   if (!confirm(`Delete "${title}" and all its episodes? Every video file is erased from storage after a 30 second countdown, and you can undo until then.`)) return;
-  delWithUndo('s:' + tmdbId, title, function () { _deleteSeriesNow(tmdbId, title); });
+  delWithUndo('s:' + tmdbId, title, function () { queueDelete({ t: 'series', key: String(tmdbId) }, title, 'series'); });
 }
 async function _deleteSeriesNow(tmdbId, title) {
   try {
