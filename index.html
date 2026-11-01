@@ -3536,8 +3536,39 @@ async function saveMovieVJ(movieKey, newVJ) {
   } catch(e) { toast('Failed: '+e.message, 'error'); }
 }
 
-async function deleteMovie(movieKey, title) {
-  if (!confirm(`Delete "${title}"?`)) return;
+// 30-second undo window before a permanent delete runs
+var _pendDel = {};
+window.addEventListener('beforeunload', function (e) { if (Object.keys(_pendDel).length) { e.preventDefault(); e.returnValue = ''; } });
+function delWithUndo(id, label, run) {
+  if (_pendDel[id]) return;
+  var box = document.getElementById('undoBox');
+  if (!box) {
+    box = document.createElement('div'); box.id = 'undoBox';
+    box.style.cssText = 'position:fixed;left:0;right:0;bottom:12px;z-index:99999;display:flex;flex-direction:column;gap:8px;padding:0 12px;pointer-events:none';
+    document.body.appendChild(box);
+  }
+  var row = document.createElement('div');
+  row.style.cssText = 'pointer-events:auto;background:#1c1c1c;border:1px solid #e5b93c;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;color:#fff;font-size:14px';
+  var txt = document.createElement('span'); txt.style.flex = '1';
+  var btn = document.createElement('button');
+  btn.textContent = 'Undo';
+  btn.style.cssText = 'background:#e5b93c;color:#000;border:0;border-radius:8px;padding:7px 14px;font-weight:700';
+  row.appendChild(txt); row.appendChild(btn); box.appendChild(row);
+  var n = 30;
+  txt.textContent = 'Deleting "' + label + '" in ' + n + 's';
+  _pendDel[id] = 1;
+  var timer = setInterval(function () {
+    n--;
+    txt.textContent = 'Deleting "' + label + '" in ' + n + 's';
+    if (n <= 0) { clearInterval(timer); row.remove(); delete _pendDel[id]; run(); }
+  }, 1000);
+  btn.onclick = function () { clearInterval(timer); row.remove(); delete _pendDel[id]; toast('Delete cancelled', 'success'); };
+}
+function deleteMovie(movieKey, title) {
+  if (!confirm(`Delete "${title}"? Its video file is erased from storage after a 30 second countdown, and you can undo until then.`)) return;
+  delWithUndo('m:' + movieKey, title, function () { _deleteMovieNow(movieKey, title); });
+}
+async function _deleteMovieNow(movieKey, title) {
   try {
     const res = await fetch(`${ADMIN_API}/delete-movie`, {
       method: 'POST',
@@ -3545,7 +3576,7 @@ async function deleteMovie(movieKey, title) {
       body: JSON.stringify({ movieKey }),
     });
     const data = await res.json();
-    if (data.success) { toast(`Deleted "${title}"`, 'success'); loadMovies(); }
+    if (data.success) { toast(`Deleted "${title}"` + (data.fileRemoved ? ' and its video file' : ' (no video file found to erase)'), 'success'); loadMovies(); }
     else throw new Error(data.error);
   } catch(e) { toast('Failed: '+e.message, 'error'); }
 }
