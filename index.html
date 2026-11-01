@@ -2145,8 +2145,8 @@ function studioEpAct(kind, id) {
     if (!note) { toast('Add a note so the creator knows what to fix'); return; }
     studioEpPost('episode-reject', { id, staffNote: note }, 'Episode rejected');
   } else if (kind === 'delete') {
-    if (!confirm('Permanently delete this episode and its file? This cannot be undone.')) return;
-    studioEpPost('episode-delete', { id }, 'Episode deleted');
+    if (!confirm('Permanently delete this episode and its file? It is erased after a 30 second countdown, tap Undo to stop it.')) return;
+    delWithUndo('se:' + id, 'this episode', function () { studioEpPost('episode-delete', { id }, 'Episode deleted'); });
   }
 }
 
@@ -2214,8 +2214,8 @@ function studioLibReject(id) {
 
 function studioLibDelete(id) {
   const t = _studioLibItems[String(id)] || {};
-  if (!confirm('Permanently delete "' + (t.title || 'this title') + '"?\n\nThis removes it from MyPicha+ and deletes its files and episodes from storage. This cannot be undone.')) return;
-  studioLibPost('title-delete', { id }, 'Deleted');
+  if (!confirm('Permanently delete "' + (t.title || 'this title') + '"?\n\nThis removes it from MyPicha+ and deletes its files and episodes from storage after a 30 second countdown (tap Undo to stop it).')) return;
+  delWithUndo('st:' + id, t.title || 'this title', function () { studioLibPost('title-delete', { id }, 'Deleted'); });
 }
 
 async function studioPreview(kind, key) {
@@ -2258,8 +2258,11 @@ async function studioPublish(id) {
   } catch (e) { toast('Connection problem'); }
 }
 
-async function studioDeleteSub(id, title) {
-  if (!confirm('Permanently delete "' + title + '"?\n\nThis removes it from MyPicha+ and deletes its files from storage. This cannot be undone.')) return;
+function studioDeleteSub(id, title) {
+  if (!confirm('Permanently delete "' + title + '"?\n\nThis removes it from MyPicha+ and deletes its files from storage after a 30 second countdown (tap Undo to stop it).')) return;
+  delWithUndo('ss:' + id, title, function () { _studioDeleteSubNow(id, title); });
+}
+async function _studioDeleteSubNow(id, title) {
   try {
     const res = await fetch(`${ADMIN_API}/studio/content-delete`, {
       method: 'POST',
@@ -3789,8 +3792,11 @@ async function toggleEpisode18Plus(seriesKey, epKey, currentState) {
   } catch(e) { toast('Failed: ' + e.message, 'error'); }
 }
 
-async function deleteSeries(tmdbId, title) {
-  if (!confirm(`Delete "${title}" and all its episodes?`)) return;
+function deleteSeries(tmdbId, title) {
+  if (!confirm(`Delete "${title}" and all its episodes? Every video file is erased from storage after a 30 second countdown, and you can undo until then.`)) return;
+  delWithUndo('s:' + tmdbId, title, function () { _deleteSeriesNow(tmdbId, title); });
+}
+async function _deleteSeriesNow(tmdbId, title) {
   try {
     const res = await fetch(`${ADMIN_API}/delete-series`, {
       method: 'POST',
@@ -3798,7 +3804,7 @@ async function deleteSeries(tmdbId, title) {
       body: JSON.stringify({ tmdbId }),
     });
     const data = await res.json();
-    if (data.success) { toast(`Deleted "${title}"`, 'success'); loadSeries(); }
+    if (data.success) { toast(`Deleted "${title}"` + (data.filesTotal ? ` and ${data.filesRemoved} of ${data.filesTotal} video files` : ' (no video files found to erase)'), 'success'); loadSeries(); }
     else throw new Error(data.error);
   } catch(e) { toast('Failed: '+e.message, 'error'); }
 }
