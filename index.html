@@ -1979,6 +1979,7 @@ function studioFilesBlock(a) {
   if (hasFiles) {
     h += '<div style="font-size:0.7rem;letter-spacing:1px;color:var(--gray);margin-bottom:0.5rem;">UPLOADED FILES</div><div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.6rem;">';
     if (safe(dt.videoKey)) h += sb('Watch video' + mb(dt.videoSize), `studioPreview('video','${dt.videoKey}')`, 'var(--gold)');
+    if (safe(dt.videoKey)) h += sb('Watch preview', "studioPreviewClip('" + dt.videoKey + "')", '#7ab8ff');
     if (safe(dt.posterKey)) h += sb('View poster', `studioPreview('image','${dt.posterKey}')`, 'var(--gold)');
     h += '</div>';
   }
@@ -2055,6 +2056,7 @@ async function loadStudioLibrary() {
             r += '<div style="font-size:0.82rem;">S' + ep.season + 'E' + ep.number + (ep.name ? ' \u00b7 ' + esc(ep.name) : '') + ' <span style="font-size:0.68rem;color:' + ec + ';margin-left:0.3rem;">' + esc(ep.status || '') + '</span></div>';
             r += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.4rem;">';
             if (safe(ep.video_key)) r += sb('Watch', "studioPreview('video','" + ep.video_key + "')", 'var(--gold)');
+            if (safe(ep.video_key)) r += sb('Watch preview', "studioPreviewClip('" + ep.video_key + "')", '#7ab8ff');
             if (t.status === 'approved' && ep.status !== 'approved') r += sb('Approve', 'studioEpAct(\'publish\',' + Number(ep.id) + ')', '#5fd28a');
             r += sb('Reject', 'studioEpAct(\'reject\',' + Number(ep.id) + ')', '#e0a63c');
             r += sb('Delete', 'studioEpAct(\'delete\',' + Number(ep.id) + ')', '#e06666');
@@ -2068,6 +2070,7 @@ async function loadStudioLibrary() {
       if (hasF) {
         h += '<div style="font-size:0.7rem;letter-spacing:1px;color:var(--gray);margin-bottom:0.5rem;">UPLOADED FILES</div><div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.6rem;">';
         if (safe(t.video_key)) h += sb('Watch video', `studioPreview('video','${t.video_key}')`, 'var(--gold)');
+        if (safe(t.video_key)) h += sb('Watch preview', "studioPreviewClip('" + t.video_key + "')", '#7ab8ff');
         if (safe(t.poster_key)) h += sb('View poster', `studioPreview('image','${t.poster_key}')`, 'var(--gold)');
         h += '</div>';
       }
@@ -2117,6 +2120,7 @@ async function studioLoadNewEps() {
       r += `<div style="font-size:0.78rem;color:var(--gray);margin:0.15rem 0 0.5rem;">${label}${e.creator ? ' \u00b7 by ' + esc(e.creator) : ''}</div>`;
       r += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
       if (safe(e.videoKey)) r += sb('Watch', `studioPreview('video','${e.videoKey}')`, 'var(--gold)');
+      if (safe(e.videoKey)) r += sb('Watch preview', "studioPreviewClip('" + e.videoKey + "')", '#7ab8ff');
       r += sb('Approve', `studioEpAct('publish',${Number(e.id)})`, '#5fd28a');
       r += sb('Reject', `studioEpAct('reject',${Number(e.id)})`, '#e0a63c');
       r += sb('Delete', `studioEpAct('delete',${Number(e.id)})`, '#e06666');
@@ -2236,6 +2240,34 @@ async function studioPreview(kind, key) {
     c.style.cssText = 'margin-top:1rem;padding:0.6rem 1.4rem;border-radius:20px;border:1px solid #444;background:#111;color:#fff;';
     c.onclick = () => { if (kind === 'video') m.pause(); o.remove(); };
     o.append(m, c);
+    document.body.appendChild(o);
+  } catch (e) { toast('Connection problem'); }
+}
+
+async function studioPreviewClip(videoKey) {
+  const key = String(videoKey || '').replace(/video\.mp4$/, 'preview.mp4');
+  if (key === videoKey || !/^studio\/[\w\/.-]+$/.test(key)) { toast('No preview clip for this item'); return; }
+  try {
+    const res = await fetch(`${ADMIN_API}/studio/file-url?key=${encodeURIComponent(key)}`, { headers: { 'X-Session-Token': sessionToken } });
+    const data = await res.json();
+    if (!res.ok || !data.url) { toast(data.error || 'Could not open preview'); return; }
+    const old = document.getElementById('studioPrev'); if (old) old.remove();
+    const o = document.createElement('div');
+    o.id = 'studioPrev';
+    o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;';
+    const lab = document.createElement('div');
+    lab.textContent = 'Preview clip (what viewers see)';
+    lab.style.cssText = 'color:#7ab8ff;font-size:0.8rem;margin-bottom:0.6rem;';
+    const m = document.createElement('video');
+    m.src = data.url;
+    m.controls = true; m.autoplay = true; m.loop = true; m.playsInline = true;
+    m.style.cssText = 'max-width:100%;max-height:74vh;border-radius:10px;';
+    m.onerror = function () { o.remove(); toast('No preview clip for this item (uploaded before previews existed)'); };
+    const c = document.createElement('button');
+    c.textContent = 'Close';
+    c.style.cssText = 'margin-top:1rem;padding:0.6rem 1.4rem;border-radius:20px;border:1px solid #444;background:#111;color:#fff;';
+    c.onclick = function () { m.pause(); o.remove(); };
+    o.append(lab, m, c);
     document.body.appendChild(o);
   } catch (e) { toast('Connection problem'); }
 }
