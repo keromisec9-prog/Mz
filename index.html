@@ -996,6 +996,16 @@ async function removeFinExpense(id) {
   try { await finCall('/admin/finance/expense/remove', 'POST', { id }); await loadFinance(); }
   catch (e) { document.getElementById('finStatus').textContent = '❌ ' + e.message; }
 }
+async function closeFinMonth(month, pct) {
+  if (!confirm('Close ' + month + '? Each creator gets a fixed credit using ' + pct + '%. This cannot be undone.')) return;
+  const st = document.getElementById('finStatus');
+  st.textContent = 'Closing...';
+  try {
+    const r = await finCall('/admin/finance/close', 'POST', { month });
+    await loadFinance();
+    st.textContent = '✅ ' + month + ' closed. ' + r.credited + ' creator credit(s), total ' + finUgx(r.total);
+  } catch (e) { st.textContent = '❌ ' + e.message; }
+}
 function renderFinance() {
   const d = finData; if (!d) return;
   const body = document.getElementById('finBody');
@@ -1028,6 +1038,25 @@ function renderFinance() {
   body.appendChild(banner);
   if (!whatIf) d.blockers.forEach(b => { const li = document.createElement('div'); li.textContent = '• ' + b; li.style.cssText = 'font-size:0.85rem;color:#ff8a8a;margin-bottom:0.2rem;'; body.appendChild(li); });
 
+  if (!whatIf) {
+    const box = document.createElement('div');
+    box.style.cssText = 'margin-bottom:0.8rem;';
+    if (d.closed) {
+      box.textContent = '🔒 Closed by ' + d.closed.closed_by + ' on ' + String(d.closed.closed_at).slice(0, 10) + '. Creator credits are fixed.';
+      box.style.color = '#54c78b';
+    } else {
+      const btn = document.createElement('button');
+      btn.textContent = 'Close ' + d.month;
+      btn.disabled = !d.payable || d.pct == null;
+      btn.onclick = () => closeFinMonth(d.month, d.pct);
+      box.appendChild(btn);
+      const note = document.createElement('div');
+      note.style.cssText = 'font-size:0.78rem;color:var(--gray);margin-top:0.3rem;';
+      note.textContent = btn.disabled ? 'Available once every check passes and a percentage is saved.' : 'Fixes each creator\u2019s credit for this month.';
+      box.appendChild(note);
+    }
+    body.appendChild(box);
+  }
   body.appendChild(finHead('Revenue for ' + d.month));
   if (netOv === null) {
     body.appendChild(finRow('Ledger net (after refunds and fees)', finUgx(d.ledgerNet)));
