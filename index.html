@@ -160,6 +160,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <div class="tab" id="adminsTab" style="display:none;" onclick="switchTab('admins')">🔑 Admins</div>
     <div class="tab" id="maintenanceTab" style="display:none;" onclick="switchTab('maintenance')">🚧 Maintenance</div>
     <div class="tab" id="promoTab" style="display:none;" onclick="switchTab('promo')">🏷️ Promotions</div>
+    <div class="tab" id="paTab" style="display:none;" onclick="switchTab('platform')">🏢 Platform accounts</div>
     <div class="tab" id="firstOfferTab" style="display:none;" onclick="switchTab('firstoffer'); loadFirstOfferStatus();">🎁 First Offer</div>
     <div class="tab" onclick="switchTab('broadcast')">📢 Broadcast</div>
     <div class="tab" onclick="switchTab('site')">🌐 Site</div>
@@ -473,6 +474,22 @@ input[type=text]::placeholder { color: var(--gray2); }
           <button class="btn btn-red" id="clearBroadcastBtn" style="display:none;" onclick="clearBroadcastMessage()">Remove Message</button>
         </div>
         <div class="status" id="broadcastStatus"></div>
+      </div>
+    </div>
+
+    <!-- PLATFORM ACCOUNTS -->
+    <div class="tab-content" id="tab-platform">
+      <div class="step">
+        <div class="step-header"><div class="step-title">Platform accounts</div></div>
+        <div style="font-size:0.82rem;color:var(--gray);margin-bottom:0.8rem;">
+          Titles uploaded by these accounts count as platform-owned, so their watch hours never
+          earn creator rewards. Changes apply to months not yet closed.
+        </div>
+        <div id="paList" style="margin-bottom:1rem;"></div>
+        <label>Add account (email or user ID)</label>
+        <input type="text" id="paInput" placeholder="e.g. someone@gmail.com"/>
+        <button onclick="addPlatformAccount()" style="margin-top:0.6rem;">Add platform account</button>
+        <div id="paStatus" style="margin-top:0.6rem;font-size:0.85rem;"></div>
       </div>
     </div>
 
@@ -814,6 +831,7 @@ async function checkAdmin() {
       if (isSuperAdmin) document.getElementById('adminsTab').style.display = 'block';
       if (isSuperAdmin) document.getElementById('maintenanceTab').style.display = 'block';
       if (isSuperAdmin) document.getElementById('promoTab').style.display = 'block';
+      if (isSuperAdmin) document.getElementById('paTab').style.display = 'block';
     document.getElementById('firstOfferTab').style.display = 'block';
       loadVJs();
     } else if (res.status === 401 || res.status === 403) {
@@ -855,6 +873,59 @@ async function signOut() {
   toast('Signed out');
 }
 
+async function paCall(path, method, body) {
+  const res = await fetch(`${ADMIN_API}/admin/platform-accounts${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || 'Failed');
+  return j;
+}
+async function loadPlatformAccounts() {
+  const box = document.getElementById('paList');
+  box.textContent = 'Loading...';
+  try {
+    const j = await paCall('', 'GET');
+    box.textContent = '';
+    if (!j.accounts.length) { box.textContent = 'No platform accounts yet.'; return; }
+    j.accounts.forEach(a => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.08);';
+      const name = document.createElement('span');
+      name.style.cssText = 'word-break:break-all;font-size:0.85rem;';
+      name.textContent = a.user_id;
+      const btn = document.createElement('button');
+      btn.textContent = 'Remove';
+      btn.onclick = () => removePlatformAccount(a.user_id);
+      row.appendChild(name); row.appendChild(btn);
+      box.appendChild(row);
+    });
+  } catch (e) { box.textContent = '❌ ' + e.message; }
+}
+async function addPlatformAccount() {
+  const st = document.getElementById('paStatus');
+  const v = document.getElementById('paInput').value.trim();
+  if (!v) { st.textContent = '❌ Enter an email or user ID'; return; }
+  st.textContent = 'Adding...';
+  try {
+    await paCall('/add', 'POST', { user: v });
+    document.getElementById('paInput').value = '';
+    st.textContent = '✅ Added';
+    loadPlatformAccounts();
+  } catch (e) { st.textContent = '❌ ' + e.message; }
+}
+async function removePlatformAccount(id) {
+  if (!confirm('Remove ' + id + ' from platform accounts? Their titles will count as creator titles for months not yet closed.')) return;
+  const st = document.getElementById('paStatus');
+  try {
+    await paCall('/remove', 'POST', { user: id });
+    st.textContent = '✅ Removed';
+    loadPlatformAccounts();
+  } catch (e) { st.textContent = '❌ ' + e.message; }
+}
+
 function switchTab(name) {
   const tabs = ['add','movies','addseries','series','addshort','shorts','users','admins','maintenance','promo','broadcast','site','analytics'];
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', (t.getAttribute('onclick')||'').indexOf("switchTab('" + name + "')") > -1));
@@ -868,6 +939,7 @@ function switchTab(name) {
   if (name==='admins') loadAdmins();
   if (name==='maintenance') loadMaintenanceStatus();
   if (name==='promo') loadPromoStatus();
+  if (name==='platform') loadPlatformAccounts();
   if (name==='broadcast') loadBroadcastMessage();
   if (name==='site') loadSiteSettings();
   if (name==='site') loadSitemapStatus();
