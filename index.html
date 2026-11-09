@@ -161,6 +161,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <div class="tab" id="maintenanceTab" style="display:none;" onclick="switchTab('maintenance')">🚧 Maintenance</div>
     <div class="tab" id="promoTab" style="display:none;" onclick="switchTab('promo')">🏷️ Promotions</div>
     <div class="tab" id="paTab" style="display:none;" onclick="switchTab('platform')">🏢 Platform accounts</div>
+    <div class="tab" id="finTab" style="display:none;" onclick="switchTab('finance')">💰 Finance</div>
     <div class="tab" id="firstOfferTab" style="display:none;" onclick="switchTab('firstoffer'); loadFirstOfferStatus();">🎁 First Offer</div>
     <div class="tab" onclick="switchTab('broadcast')">📢 Broadcast</div>
     <div class="tab" onclick="switchTab('site')">🌐 Site</div>
@@ -490,6 +491,25 @@ input[type=text]::placeholder { color: var(--gray2); }
         <input type="text" id="paInput" placeholder="e.g. someone@gmail.com"/>
         <button onclick="addPlatformAccount()" style="margin-top:0.6rem;">Add platform account</button>
         <div id="paStatus" style="margin-top:0.6rem;font-size:0.85rem;"></div>
+      </div>
+    </div>
+
+    <!-- FINANCE -->
+    <div class="tab-content" id="tab-finance">
+      <div class="step">
+        <div class="step-header"><div class="step-title">Finance</div></div>
+        <div style="font-size:0.82rem;color:var(--gray);margin-bottom:0.8rem;">
+          Read-only view of subscription revenue, watch hours and the creator rewards preview.
+          Nothing here pays anyone. Promotion and boost payments are excluded from revenue.
+        </div>
+        <label>Month</label>
+        <input type="month" id="finMonth"/>
+        <label style="margin-top:0.8rem;display:block;">Creator rewards percent of net revenue</label>
+        <input type="number" id="finPct" min="1" max="100" value="30"/>
+        <div style="font-size:0.78rem;color:var(--gray);margin-top:0.3rem;">30 is a placeholder until you decide the policy.</div>
+        <button onclick="loadFinance()" style="margin-top:0.8rem;">Refresh</button>
+        <div id="finStatus" style="margin-top:0.6rem;font-size:0.85rem;"></div>
+        <div id="finBody" style="margin-top:1rem;"></div>
       </div>
     </div>
 
@@ -832,6 +852,7 @@ async function checkAdmin() {
       if (isSuperAdmin) document.getElementById('maintenanceTab').style.display = 'block';
       if (isSuperAdmin) document.getElementById('promoTab').style.display = 'block';
       if (isSuperAdmin) document.getElementById('paTab').style.display = 'block';
+      if (isSuperAdmin) document.getElementById('finTab').style.display = 'block';
     document.getElementById('firstOfferTab').style.display = 'block';
       loadVJs();
     } else if (res.status === 401 || res.status === 403) {
@@ -871,6 +892,59 @@ async function signOut() {
   document.getElementById('adminsTab').style.display = 'none';
   document.getElementById('gateErr').style.display = 'none';
   toast('Signed out');
+}
+
+function finUgx(n) { return 'UGX ' + Math.round(Number(n) || 0).toLocaleString('en-US'); }
+function finRow(label, value, strong) {
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;justify-content:space-between;gap:0.8rem;padding:0.35rem 0;border-bottom:1px solid rgba(255,255,255,0.08);font-size:0.88rem;';
+  const a = document.createElement('span'); a.textContent = label; a.style.color = 'var(--gray)';
+  const b = document.createElement('span'); b.textContent = value; if (strong) b.style.fontWeight = 'bold';
+  r.appendChild(a); r.appendChild(b);
+  return r;
+}
+function finHead(text) {
+  const h = document.createElement('div');
+  h.textContent = text;
+  h.style.cssText = 'font-weight:bold;margin:1.2rem 0 0.4rem;';
+  return h;
+}
+async function loadFinance() {
+  const mEl = document.getElementById('finMonth');
+  if (!mEl.value) mEl.value = new Date(Date.now() + 3*3600*1000).toISOString().slice(0,7);
+  const pct = Number(document.getElementById('finPct').value) || 30;
+  const st = document.getElementById('finStatus');
+  const body = document.getElementById('finBody');
+  st.textContent = 'Loading...';
+  try {
+    const res = await fetch(`${ADMIN_API}/admin/finance?month=${encodeURIComponent(mEl.value)}&pct=${pct}`, { headers: { 'X-Session-Token': sessionToken } });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Failed');
+    st.textContent = '';
+    body.textContent = '';
+
+    const banner = document.createElement('div');
+    banner.style.cssText = 'padding:0.8rem;border-radius:8px;font-weight:bold;text-align:center;margin-bottom:0.8rem;';
+    if (d.payable) { banner.textContent = 'Month passes all checks'; banner.style.background = 'rgba(46,160,67,0.25)'; }
+    else { banner.textContent = 'PREVIEW ONLY. Not payable yet.'; banner.style.background = 'rgba(220,53,69,0.25)'; }
+    body.appendChild(banner);
+    d.blockers.forEach(b => { const li = document.createElement('div'); li.textContent = '• ' + b; li.style.cssText = 'font-size:0.85rem;color:#ff8a8a;margin-bottom:0.2rem;'; body.appendChild(li); });
+
+    body.appendChild(finHead('Rewards preview for ' + d.month));
+    body.appendChild(finRow('Net subscription revenue', finUgx(d.net), true));
+    body.appendChild(finRow('Creator rewards pool (' + d.pct + '%)', finUgx(d.pool), true));
+    body.appendChild(finRow('Platform-owned hours', d.platformHours.toFixed(2)));
+    body.appendChild(finRow('Creator-owned hours', d.creatorHours.toFixed(2)));
+    body.appendChild(finRow('Excluded hours (rejected or removed titles)', d.excludedHours.toFixed(2)));
+    body.appendChild(finRow('Rate per qualified hour', 'UGX ' + d.rate.toFixed(2) + '/hr', true));
+
+    body.appendChild(finHead('Creator earnings'));
+    if (!d.earnings.length) { const n = document.createElement('div'); n.textContent = 'No creator watch hours this month.'; n.style.cssText = 'font-size:0.85rem;color:var(--gray);'; body.appendChild(n); }
+    d.earnings.forEach(e => body.appendChild(finRow(e.creator + ' · ' + e.hours.toFixed(2) + ' h', finUgx(e.earnings), true)));
+
+    body.appendChild(finHead('Recent months'));
+    d.months.forEach(m => body.appendChild(finRow(m.month + ' · ' + m.payments + ' payments', 'gross ' + finUgx(m.gross) + ' / net ' + finUgx(m.net))));
+  } catch (e) { st.textContent = '❌ ' + e.message; }
 }
 
 async function paCall(path, method, body) {
@@ -940,6 +1014,7 @@ function switchTab(name) {
   if (name==='maintenance') loadMaintenanceStatus();
   if (name==='promo') loadPromoStatus();
   if (name==='platform') loadPlatformAccounts();
+  if (name==='finance') loadFinance();
   if (name==='broadcast') loadBroadcastMessage();
   if (name==='site') loadSiteSettings();
   if (name==='site') loadSitemapStatus();
