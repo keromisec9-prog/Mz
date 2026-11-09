@@ -505,9 +505,29 @@ input[type=text]::placeholder { color: var(--gray2); }
         <label>Month</label>
         <input type="month" id="finMonth"/>
         <label style="margin-top:0.8rem;display:block;">Creator rewards percent of net revenue</label>
-        <input type="number" id="finPct" min="1" max="100" value="30"/>
+        <input type="range" id="finPct" min="5" max="50" step="1" value="30" oninput="renderFinance()"/>
+        <div id="finPctLabel" style="font-weight:bold;">30%</div>
         <div style="font-size:0.78rem;color:var(--gray);margin-top:0.3rem;">30 is a placeholder until you decide the policy.</div>
         <button onclick="loadFinance()" style="margin-top:0.8rem;">Refresh</button>
+
+        <label style="margin-top:1.2rem;display:block;">What-if (leave blank to use real data)</label>
+        <input type="number" id="finNetOv" placeholder="Net revenue (UGX)" oninput="renderFinance()"/>
+        <input type="number" id="finPlatOv" placeholder="Platform hours" oninput="renderFinance()" style="margin-top:0.4rem;"/>
+        <input type="number" id="finCreatOv" placeholder="Creator hours" oninput="renderFinance()" style="margin-top:0.4rem;"/>
+
+        <label style="margin-top:1.2rem;display:block;">Add monthly expense</label>
+        <select id="finExpCat" style="width:100%;padding:0.6rem;">
+          <option>Server and hosting</option>
+          <option>Content licensing</option>
+          <option>Marketing</option>
+          <option>Other</option>
+        </select>
+        <input type="number" id="finExpAmt" placeholder="Amount (UGX)" style="margin-top:0.4rem;"/>
+        <input type="text" id="finExpNote" placeholder="Note (optional)" style="margin-top:0.4rem;"/>
+        <button onclick="addFinExpense()" style="margin-top:0.5rem;">Add expense</button>
+        <div style="font-size:0.78rem;color:var(--gray);margin-top:0.3rem;">
+          Do not enter payment fees or refunds here. They come from the ledger and would be deducted twice.
+        </div>
         <div id="finStatus" style="margin-top:0.6rem;font-size:0.85rem;"></div>
         <div id="finBody" style="margin-top:1rem;"></div>
       </div>
@@ -909,42 +929,114 @@ function finHead(text) {
   h.style.cssText = 'font-weight:bold;margin:1.2rem 0 0.4rem;';
   return h;
 }
+let finData = null;
+async function finCall(path, method, body) {
+  const res = await fetch(`${ADMIN_API}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || 'Failed');
+  return j;
+}
 async function loadFinance() {
   const mEl = document.getElementById('finMonth');
   if (!mEl.value) mEl.value = new Date(Date.now() + 3*3600*1000).toISOString().slice(0,7);
-  const pct = Number(document.getElementById('finPct').value) || 30;
   const st = document.getElementById('finStatus');
-  const body = document.getElementById('finBody');
   st.textContent = 'Loading...';
   try {
-    const res = await fetch(`${ADMIN_API}/admin/finance?month=${encodeURIComponent(mEl.value)}&pct=${pct}`, { headers: { 'X-Session-Token': sessionToken } });
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d.error || 'Failed');
+    finData = await finCall(`/admin/finance?month=${encodeURIComponent(mEl.value)}&pct=30`, 'GET');
     st.textContent = '';
-    body.textContent = '';
+    renderFinance();
+  } catch (e) { st.textContent = '❌ ' + e.message; }
+}
+async function addFinExpense() {
+  const st = document.getElementById('finStatus');
+  const month = document.getElementById('finMonth').value;
+  const amount = Number(document.getElementById('finExpAmt').value);
+  if (!month || !(amount > 0)) { st.textContent = '❌ Choose a month and enter an amount'; return; }
+  try {
+    await finCall('/admin/finance/expense/add', 'POST', {
+      month, amount,
+      category: document.getElementById('finExpCat').value,
+      note: document.getElementById('finExpNote').value
+    });
+    document.getElementById('finExpAmt').value = '';
+    document.getElementById('finExpNote').value = '';
+    await loadFinance();
+    st.textContent = '✅ Expense added';
+  } catch (e) { st.textContent = '❌ ' + e.message; }
+}
+async function removeFinExpense(id) {
+  if (!confirm('Remove this expense?')) return;
+  try { await finCall('/admin/finance/expense/remove', 'POST', { id }); await loadFinance(); }
+  catch (e) { document.getElementById('finStatus').textContent = '❌ ' + e.message; }
+}
+function renderFinance() {
+  const d = finData; if (!d) return;
+  const body = document.getElementById('finBody');
+  const pct = Number(document.getElementById('finPct').value) || 30;
+  document.getElementById('finPctLabel').textContent = pct + '%';
+  const ov = id => { const v = document.getElementById(id).value; return v === '' ? null : Math.max(0, Number(v) || 0); };
+  const netOv = ov('finNetOv'), pOv = ov('finPlatOv'), cOv = ov('finCreatOv');
+  const whatIf = netOv !== null || pOv !== null || cOv !== null;
+  const net = netOv !== null ? netOv : d.net;
+  const pH = pOv !== null ? pOv : d.platformHours;
+  const cH = cOv !== null ? cOv : d.creatorHours;
+  const total = pH + cH;
+  const share = total > 0 ? cH / total : 0;
+  const alloc = pct / 100 * share;
+  const pool = net * alloc;
+  const rate = cH > 0 ? pool / cH : 0;
 
-    const banner = document.createElement('div');
-    banner.style.cssText = 'padding:0.8rem;border-radius:8px;font-weight:bold;text-align:center;margin-bottom:0.8rem;';
-    if (d.payable) { banner.textContent = 'Month passes all checks'; banner.style.background = 'rgba(46,160,67,0.25)'; }
-    else { banner.textContent = 'PREVIEW ONLY. Not payable yet.'; banner.style.background = 'rgba(220,53,69,0.25)'; }
-    body.appendChild(banner);
-    d.blockers.forEach(b => { const li = document.createElement('div'); li.textContent = '• ' + b; li.style.cssText = 'font-size:0.85rem;color:#ff8a8a;margin-bottom:0.2rem;'; body.appendChild(li); });
+  body.textContent = '';
+  const banner = document.createElement('div');
+  banner.style.cssText = 'padding:0.8rem;border-radius:8px;font-weight:bold;text-align:center;margin-bottom:0.8rem;';
+  if (whatIf) { banner.textContent = 'WHAT-IF. Your own numbers, not real data.'; banner.style.background = 'rgba(214,168,75,0.25)'; }
+  else if (d.payable) { banner.textContent = 'Month passes all checks'; banner.style.background = 'rgba(46,160,67,0.25)'; }
+  else { banner.textContent = 'PREVIEW ONLY. Not payable yet.'; banner.style.background = 'rgba(220,53,69,0.25)'; }
+  body.appendChild(banner);
+  if (!whatIf) d.blockers.forEach(b => { const li = document.createElement('div'); li.textContent = '• ' + b; li.style.cssText = 'font-size:0.85rem;color:#ff8a8a;margin-bottom:0.2rem;'; body.appendChild(li); });
 
-    body.appendChild(finHead('Rewards preview for ' + d.month));
-    body.appendChild(finRow('Net subscription revenue', finUgx(d.net), true));
-    body.appendChild(finRow('Creator rewards pool (' + d.pct + '%)', finUgx(d.pool), true));
-    body.appendChild(finRow('Platform-owned hours', d.platformHours.toFixed(2)));
-    body.appendChild(finRow('Creator-owned hours', d.creatorHours.toFixed(2)));
-    body.appendChild(finRow('Excluded hours (rejected or removed titles)', d.excludedHours.toFixed(2)));
-    body.appendChild(finRow('Rate per qualified hour', 'UGX ' + d.rate.toFixed(2) + '/hr', true));
+  body.appendChild(finHead('Revenue for ' + d.month));
+  if (netOv === null) {
+    body.appendChild(finRow('Ledger net (after refunds and fees)', finUgx(d.ledgerNet)));
+    body.appendChild(finRow('Operating expenses', '− ' + finUgx(d.expensesTotal)));
+  }
+  body.appendChild(finRow('Net used for rewards', finUgx(net), true));
 
+  body.appendChild(finHead('Watch hours'));
+  body.appendChild(finRow('Platform-owned hours', pH.toFixed(2)));
+  body.appendChild(finRow('Creator-owned hours', cH.toFixed(2)));
+  body.appendChild(finRow('Creator share of viewing', (share * 100).toFixed(1) + '%'));
+  if (!whatIf) body.appendChild(finRow('Excluded hours (rejected or removed)', d.excludedHours.toFixed(2)));
+
+  body.appendChild(finHead('Rewards'));
+  body.appendChild(finRow('Effective allocation', (alloc * 100).toFixed(2) + '%', true));
+  body.appendChild(finRow(pct + '% max × ' + (share * 100).toFixed(1) + '% creator share', ''));
+  body.appendChild(finRow('Creator rewards pool', finUgx(pool), true));
+  body.appendChild(finRow('Rate per creator hour', 'UGX ' + rate.toFixed(2) + '/hr', true));
+  if (cH <= 0) { const w = document.createElement('div'); w.textContent = 'No creator hours, so no rate can be calculated.'; w.style.cssText = 'font-size:0.82rem;color:#ff8a8a;margin-top:0.3rem;'; body.appendChild(w); }
+
+  if (!whatIf) {
     body.appendChild(finHead('Creator earnings'));
     if (!d.earnings.length) { const n = document.createElement('div'); n.textContent = 'No creator watch hours this month.'; n.style.cssText = 'font-size:0.85rem;color:var(--gray);'; body.appendChild(n); }
-    d.earnings.forEach(e => body.appendChild(finRow(e.creator + ' · ' + e.hours.toFixed(2) + ' h', finUgx(e.earnings), true)));
+    d.earnings.forEach(e => body.appendChild(finRow(e.creator + ' · ' + e.hours.toFixed(2) + ' h', finUgx(e.hours * rate), true)));
+
+    body.appendChild(finHead('Expenses entered for ' + d.month));
+    if (!d.expenses.length) { const n = document.createElement('div'); n.textContent = 'None.'; n.style.cssText = 'font-size:0.85rem;color:var(--gray);'; body.appendChild(n); }
+    d.expenses.forEach(x => {
+      const row = finRow(x.category + (x.note ? ' · ' + x.note : ''), finUgx(x.amount));
+      const btn = document.createElement('button'); btn.textContent = 'Remove'; btn.style.marginLeft = '0.5rem';
+      btn.onclick = () => removeFinExpense(Number(x.id));
+      row.lastChild.appendChild(btn);
+      body.appendChild(row);
+    });
 
     body.appendChild(finHead('Recent months'));
     d.months.forEach(m => body.appendChild(finRow(m.month + ' · ' + m.payments + ' payments', 'gross ' + finUgx(m.gross) + ' / net ' + finUgx(m.net))));
-  } catch (e) { st.textContent = '❌ ' + e.message; }
+  }
 }
 
 async function paCall(path, method, body) {
