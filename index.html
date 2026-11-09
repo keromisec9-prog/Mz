@@ -505,9 +505,10 @@ input[type=text]::placeholder { color: var(--gray2); }
         <label>Month</label>
         <input type="month" id="finMonth"/>
         <label style="margin-top:0.8rem;display:block;">Creator rewards percent of net revenue</label>
-        <input type="range" id="finPct" min="5" max="50" step="1" value="30" oninput="renderFinance()"/>
-        <div id="finPctLabel" style="font-weight:bold;">30%</div>
-        <div style="font-size:0.78rem;color:var(--gray);margin-top:0.3rem;">30 is a placeholder until you decide the policy.</div>
+        <input type="number" id="finPct" min="0.01" max="100" step="0.01" placeholder="e.g. 12.5" oninput="renderFinance()"/>
+        <div id="finPctLabel" style="font-weight:bold;margin-top:0.3rem;"></div>
+        <button onclick="saveFinPct()" style="margin-top:0.5rem;">Save percentage</button>
+        <div style="font-size:0.78rem;color:var(--gray);margin-top:0.3rem;">Saving makes this the real percentage for every month not yet closed. Each change is logged.</div>
         <button onclick="loadFinance()" style="margin-top:0.8rem;">Refresh</button>
 
         <label style="margin-top:1.2rem;display:block;">What-if (leave blank to use real data)</label>
@@ -930,6 +931,11 @@ function finHead(text) {
   return h;
 }
 let finData = null;
+function finDur(secs) {
+  secs = Math.max(0, Math.round(Number(secs) || 0));
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), sc = secs % 60;
+  return h + 'h ' + m + 'm ' + sc + 's';
+}
 async function finCall(path, method, body) {
   const res = await fetch(`${ADMIN_API}${path}`, {
     method,
@@ -946,9 +952,21 @@ async function loadFinance() {
   const st = document.getElementById('finStatus');
   st.textContent = 'Loading...';
   try {
-    finData = await finCall(`/admin/finance?month=${encodeURIComponent(mEl.value)}&pct=30`, 'GET');
+    finData = await finCall(`/admin/finance?month=${encodeURIComponent(mEl.value)}`, 'GET');
+    if (finData.pct != null) document.getElementById('finPct').value = finData.pct;
     st.textContent = '';
     renderFinance();
+  } catch (e) { st.textContent = '❌ ' + e.message; }
+}
+async function saveFinPct() {
+  const st = document.getElementById('finStatus');
+  const v = Number(document.getElementById('finPct').value);
+  if (!(v > 0 && v <= 100)) { st.textContent = '❌ Enter a percentage above 0 and up to 100'; return; }
+  if (!confirm('Set the real creator rewards percentage to ' + v + '%? Every month not yet closed will use it.')) return;
+  try {
+    await finCall('/admin/finance/pct', 'POST', { pct: v });
+    await loadFinance();
+    st.textContent = '✅ Percentage saved: ' + v + '%';
   } catch (e) { st.textContent = '❌ ' + e.message; }
 }
 async function addFinExpense() {
@@ -976,19 +994,25 @@ async function removeFinExpense(id) {
 function renderFinance() {
   const d = finData; if (!d) return;
   const body = document.getElementById('finBody');
-  const pct = Number(document.getElementById('finPct').value) || 30;
-  document.getElementById('finPctLabel').textContent = pct + '%';
+  const raw = document.getElementById('finPct').value;
+  const pct = raw === '' ? 0 : Math.max(0, Number(raw) || 0);
+  const lab = document.getElementById('finPctLabel');
+  const saved = d.pct;
+  if (saved == null) { lab.textContent = 'No percentage saved yet. Enter one and tap Save to make it real.'; lab.style.color = '#ff8a8a'; }
+  else if (Math.abs(saved - pct) < 1e-9) { lab.textContent = 'Saved and in effect: ' + saved + '%'; lab.style.color = '#54c78b'; }
+  else { lab.textContent = 'Unsaved preview. Saved percentage is ' + saved + '%'; lab.style.color = '#f0cc79'; }
+
   const ov = id => { const v = document.getElementById(id).value; return v === '' ? null : Math.max(0, Number(v) || 0); };
   const netOv = ov('finNetOv'), pOv = ov('finPlatOv'), cOv = ov('finCreatOv');
   const whatIf = netOv !== null || pOv !== null || cOv !== null;
   const net = netOv !== null ? netOv : d.net;
-  const pH = pOv !== null ? pOv : d.platformHours;
-  const cH = cOv !== null ? cOv : d.creatorHours;
-  const total = pH + cH;
-  const share = total > 0 ? cH / total : 0;
+  const pS = pOv !== null ? Math.round(pOv * 3600) : d.platformSecs;
+  const cS = cOv !== null ? Math.round(cOv * 3600) : d.creatorSecs;
+  const tS = pS + cS;
+  const share = tS > 0 ? cS / tS : 0;
   const alloc = pct / 100 * share;
   const pool = net * alloc;
-  const rate = cH > 0 ? pool / cH : 0;
+  const rateHr = tS > 0 ? net * pct / 100 / (tS / 3600) : 0;
 
   body.textContent = '';
   const banner = document.createElement('div');
@@ -1006,23 +1030,24 @@ function renderFinance() {
   }
   body.appendChild(finRow('Net used for rewards', finUgx(net), true));
 
-  body.appendChild(finHead('Watch hours'));
-  body.appendChild(finRow('Platform-owned hours', pH.toFixed(2)));
-  body.appendChild(finRow('Creator-owned hours', cH.toFixed(2)));
-  body.appendChild(finRow('Creator share of viewing', (share * 100).toFixed(1) + '%'));
-  if (!whatIf) body.appendChild(finRow('Excluded hours (rejected or removed)', d.excludedHours.toFixed(2)));
+  body.appendChild(finHead('Watch time'));
+  body.appendChild(finRow('Platform-owned', finDur(pS)));
+  body.appendChild(finRow('Creator-owned', finDur(cS)));
+  body.appendChild(finRow('Total qualified', finDur(tS)));
+  body.appendChild(finRow('Creator share of viewing', (share * 100).toFixed(4) + '%'));
+  if (!whatIf) body.appendChild(finRow('Excluded (rejected or removed)', finDur(d.excludedSecs)));
 
   body.appendChild(finHead('Rewards'));
-  body.appendChild(finRow('Effective allocation', (alloc * 100).toFixed(2) + '%', true));
-  body.appendChild(finRow(pct + '% max × ' + (share * 100).toFixed(1) + '% creator share', ''));
+  body.appendChild(finRow('Percentage used', pct + '%'));
+  body.appendChild(finRow('Effective allocation', (alloc * 100).toFixed(4) + '%', true));
   body.appendChild(finRow('Creator rewards pool', finUgx(pool), true));
-  body.appendChild(finRow('Rate per creator hour', 'UGX ' + rate.toFixed(2) + '/hr', true));
-  if (cH <= 0) { const w = document.createElement('div'); w.textContent = 'No creator hours, so no rate can be calculated.'; w.style.cssText = 'font-size:0.82rem;color:#ff8a8a;margin-top:0.3rem;'; body.appendChild(w); }
+  body.appendChild(finRow('Rate per creator hour', 'UGX ' + rateHr.toFixed(4) + '/hr', true));
+  if (cS <= 0) { const w = document.createElement('div'); w.textContent = 'No creator watch time, so no creator payouts.'; w.style.cssText = 'font-size:0.82rem;color:#ff8a8a;margin-top:0.3rem;'; body.appendChild(w); }
 
   if (!whatIf) {
     body.appendChild(finHead('Creator earnings'));
-    if (!d.earnings.length) { const n = document.createElement('div'); n.textContent = 'No creator watch hours this month.'; n.style.cssText = 'font-size:0.85rem;color:var(--gray);'; body.appendChild(n); }
-    d.earnings.forEach(e => body.appendChild(finRow(e.creator + ' · ' + e.hours.toFixed(2) + ' h', finUgx(e.hours * rate), true)));
+    if (!d.creators.length) { const n = document.createElement('div'); n.textContent = 'No creator watch time this month.'; n.style.cssText = 'font-size:0.85rem;color:var(--gray);'; body.appendChild(n); }
+    d.creators.forEach(e => body.appendChild(finRow(e.creator + ' · ' + finDur(e.secs), finUgx(e.secs / 3600 * rateHr), true)));
 
     body.appendChild(finHead('Expenses entered for ' + d.month));
     if (!d.expenses.length) { const n = document.createElement('div'); n.textContent = 'None.'; n.style.cssText = 'font-size:0.85rem;color:var(--gray);'; body.appendChild(n); }
