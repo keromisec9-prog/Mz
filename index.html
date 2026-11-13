@@ -2377,10 +2377,10 @@ async function loadStudioLibrary() {
       } else if (isSeries ? (t.episodeCount || 0) > 0 : safe(t.video_key)) {
         const genres = STUDIO_GENRES.map(g => `<label style="font-size:0.75rem;display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" class="lt-g-${id}" value="${g}"> ${esc(TMDB_GENRE_MAP[g] || g)}</label>`).join('');  /* LABEL_FROM_CONTENT */
         h += '<div style="font-size:0.7rem;letter-spacing:1px;color:var(--gray);margin:0.2rem 0 0.4rem;">PUBLISH TO MYPICHA+</div>';
-        h += `<input id="lt-vj-${id}" value="Studio" placeholder="VJ name" style="width:100%;margin-bottom:0.4rem;">`;
+        h += `<input id="lt-vj-${id}" value="${esc(t.vj || 'Studio')}" placeholder="VJ name" style="width:100%;margin-bottom:0.4rem;">`;
         h += `<input id="lt-year-${id}" type="number" value="${new Date().getFullYear()}" placeholder="Year" style="width:100%;margin-bottom:0.4rem;">`;
         h += `<div style="display:flex;flex-wrap:wrap;gap:0.3rem 0.8rem;margin-bottom:0.4rem;">${genres}</div>`;
-        h += `<div style="display:flex;gap:1rem;margin-bottom:0.4rem;font-size:0.78rem;"><label style="display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" id="lt-18-${id}"> 18+</label><label style="display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" id="lt-ug-${id}"> Ugandan</label></div>`;
+        h += `<div style="display:flex;gap:1rem;margin-bottom:0.4rem;font-size:0.78rem;"><label style="display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" id="lt-18-${id}"${t.is_18_plus ? ' checked' : ''}> 18+</label><label style="display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" id="lt-ug-${id}"${t.is_african ? ' checked' : ''}> Ugandan</label></div>`;
         h += `<textarea id="lt-ov-${id}" rows="2" placeholder="Overview (uses the creator's synopsis if empty)" style="width:100%;margin-bottom:0.5rem;"></textarea>`;
         h += '<div style="margin-bottom:0.6rem;">' + sb('Publish to MyPicha+', `studioLibPublish('${id}')`, '#5fd28a') + '</div>';
       } else if (isSeries) {
@@ -2506,7 +2506,7 @@ function studioLibPublish(id) {
     const cg = String((_studioLibItems[String(id)] || {}).genre || '').toLowerCase().split(',').map(s => s.trim().replace(/^sci-fi$/, 'science fiction')).filter(Boolean);
     g = Array.from(document.querySelectorAll('.lt-g-' + id)).filter(x => cg.indexOf(String((x.parentElement || {}).textContent || '').trim().toLowerCase()) > -1).map(x => parseInt(x.value, 10)).filter(n => n > 0);
   }
-  if (!g.length) { toast('Pick at least one genre'); return; }
+  if (!g.length && !v('lt-ug-').checked) { toast('Pick at least one genre'); return; }
   if (!confirm('Publish this ' + (((_studioLibItems[String(id)] || {}).kind === 'series') ? 'series' : 'movie') + ' to MyPicha+ now?')) return;
   studioLibPost('title-publish', { id, vj: (v('lt-vj-').value || '').trim(), year: v('lt-year-').value, genreIds: g, is18Plus: !!v('lt-18-').checked, isUgandan: !!v('lt-ug-').checked, overview: (v('lt-ov-').value || '').trim() }, 'Published');
 }
