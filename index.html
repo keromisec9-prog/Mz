@@ -3673,11 +3673,13 @@ async function loadMovies() {
   document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Loading...</div>';
   try {
     const res = await fetch(`${ADMIN_API}/movies`, { headers: { 'X-Session-Token': sessionToken } });
-    const data = await res.json();
+    const txt = await res.text();
+    let data; try { data = JSON.parse(txt); } catch (pe) { throw new Error('HTTP ' + res.status + ' non-JSON: ' + txt.slice(0, 120)); }
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (data.error || ''));
     if (!data.movies?.length) { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">No movies yet.</div>'; return; }
     _allMoviesCache = data.movies.slice().sort((a,b) => (b.addedAt||0) - (a.addedAt||0));
     renderMoviesList(_allMoviesCache);
-  } catch { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load.</div>'; }
+  } catch (e) { document.getElementById('moviesList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray);">Failed to load: ' + esc(e && e.message || String(e)) + '</div>'; }
 }
 
 function _movieCardHTML(m) {
