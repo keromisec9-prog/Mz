@@ -165,6 +165,7 @@ input[type=text]::placeholder { color: var(--gray2); }
     <div class="tab" id="firstOfferTab" style="display:none;" onclick="switchTab('firstoffer'); loadFirstOfferStatus();">🎁 First Offer</div>
     <div class="tab" onclick="switchTab('broadcast')">📢 Broadcast</div>
     <div class="tab" onclick="switchTab('site')">🌐 Site</div>
+    <div class="tab" onclick="switchTab('previews')">🎞 Previews</div>
     <div class="tab" onclick="switchTab('analytics')">📊 Analytics</div>
     <div class="tab" onclick="switchTab('vjs')">🎤 VJs</div>
     <div class="tab" onclick="switchTab('studio')">Studio</div>
@@ -1169,6 +1170,7 @@ function switchTab(name) {
   if (name==='broadcast') loadBroadcastMessage();
   if (name==='site') loadSiteSettings();
   if (name==='site') loadSitemapStatus();
+  if (name==='previews') { try { RC.load(); } catch (e) { toast('Previews tab error: ' + e.message); } }
   if (name==='analytics') loadAnalytics();
   if (name==='studio') loadStudio();
 }
@@ -2285,7 +2287,7 @@ function studioFilesBlock(a) {
     h += `<div style="font-size:0.78rem;color:#5fd28a;margin-bottom:0.6rem;">Live on MyPicha+ as ${esc(dt.catalogKey)}</div>`;
   } else if (a.kind === 'movie' && safe(dt.videoKey) && safe(dt.posterKey)) {
     h += '<div style="font-size:0.7rem;letter-spacing:1px;color:var(--gray);margin:0.2rem 0 0.4rem;">PUBLISH TO MYPICHA+</div>';
-    h += `<input id="stp-vj-${id}" value="Studio" placeholder="VJ name" style="width:100%;margin-bottom:0.4rem;">`;
+    h += `<input id="stp-vj-${id}" value="${esc(a.vj || dt.vj || 'Studio')}" placeholder="VJ name" style="width:100%;margin-bottom:0.4rem;">`;
     h += `<input id="stp-year-${id}" type="number" value="${new Date().getFullYear()}" placeholder="Year" style="width:100%;margin-bottom:0.4rem;">`;
     h += '<div style="display:flex;flex-wrap:wrap;gap:0.3rem 0.8rem;margin-bottom:0.4rem;">' + STUDIO_GENRES.map(g => `<label style="font-size:0.75rem;display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" class="stp-g-${id}" value="${g}"> ${esc(TMDB_GENRE_MAP[g] || g)}</label>`).join('') + '</div>';
     h += `<div style="display:flex;gap:1rem;margin-bottom:0.4rem;font-size:0.78rem;"><label style="display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" id="stp-18-${id}"> 18+</label><label style="display:flex;align-items:center;gap:0.25rem;"><input type="checkbox" id="stp-ug-${id}"> Ugandan</label></div>`;
@@ -2573,6 +2575,301 @@ async function studioPreviewClip(videoKey) {
     document.body.appendChild(o);
   } catch (e) { toast('Connection problem'); }
 }
+
+/* ===== Previews tab (RC): trimmer, integrations, compare, scan ===== */
+(function () {
+  if (window.RC) return;
+  var RC = window.RC = {}, S = { results: [], tg: 0, wl: 120, start: 0, dur: 30, ws: 0, vd: 0, custom: false };
+  var Q = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function mmss(t) { t = Math.max(0, Math.round(Number(t) || 0)); var h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60; return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (s < 10 ? '0' : '') + s; }
+  function parseT(x) { x = String(x || '').trim(); if (!x) return NaN; var p = x.split(':').map(Number); if (p.some(isNaN)) return NaN; var t = 0; for (var i = 0; i < p.length; i++) t = t * 60 + p[i]; return t; }
+  function mb(n) { return n == null || n < 0 ? '?' : (n >= 1048576 ? (n / 1048576).toFixed(2) + ' MB' : Math.round(n / 1024) + ' KB'); }
+  function msg(m) { try { toast(m); } catch (e) { alert(m); } }
+  async function api(path, method, body) {
+    var r = await fetch(ADMIN_API + path, { method: method || 'GET', headers: { 'X-Session-Token': sessionToken, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    var j = null; try { j = await r.json(); } catch (e) {}
+    if (!r.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+    return j || {};
+  }
+  function css() {
+    if (Q('rcCss')) return;
+    var z = document.createElement('style'); z.id = 'rcCss';
+    z.textContent = [
+      '.rc-card{background:#141414;border:1px solid #2a2a2a;border-radius:12px;padding:12px;margin:0 0 12px}',
+      '.rc-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #222}',
+      '.rc-t{flex:1;min-width:0}.rc-s{font-size:.75rem;color:#999}',
+      '.rc-b{background:#222;color:#fff;border:1px solid #444;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:.85rem}',
+      '.rc-b.g{background:var(--gold,#e5b93c);color:#000;border-color:transparent;font-weight:700}.rc-b:disabled{opacity:.5}',
+      '.rc-in{background:#0d0d0d;color:#fff;border:1px solid #444;border-radius:8px;padding:8px;width:100%;box-sizing:border-box}',
+      '.rc-m{position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:9999;overflow:auto;padding:12px;box-sizing:border-box}',
+      '.rc-box{max-width:760px;margin:0 auto}',
+      '.rc-strip{position:relative;height:56px;margin:10px 0 2px;border-radius:8px;overflow:hidden;background:#111;touch-action:none;user-select:none}',
+      '.rc-th{display:flex;height:100%}.rc-th canvas{flex:1;min-width:0;height:100%;background:#1a1a1a}',
+      '.rc-sel{position:absolute;top:0;bottom:0;border:3px solid var(--gold,#e5b93c);box-sizing:border-box;background:rgba(229,185,60,.14);touch-action:none;cursor:grab}',
+      '.rc-hd{position:absolute;top:-3px;bottom:-3px;width:22px;background:var(--gold,#e5b93c);touch-action:none;cursor:ew-resize}',
+      '.rc-hd.l{left:-3px;border-radius:8px 0 0 8px}.rc-hd.r{right:-3px;border-radius:0 8px 8px 0}',
+      '.rc-ok{color:#6fdc8c}.rc-bad{color:#ff7a7a}.rc-warn{color:#ffc857}'
+    ].join('');
+    document.head.appendChild(z);
+  }
+  function ensureTab() {
+    if (Q('tab-previews')) return true;
+    var site = Q('tab-site'); if (!site || !site.parentNode) return false;
+    var d = document.createElement('div'); d.id = 'tab-previews'; d.className = 'tab-content';
+    site.parentNode.insertBefore(d, site.nextSibling); return true;
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureTab); else ensureTab();
+
+  RC.load = function () {
+    css(); if (!ensureTab()) { msg('Previews tab could not be created'); return; }
+    Q('tab-previews').innerHTML =
+      '<div class="rc-card"><b>Re-cut a preview</b><div class="rc-s" style="margin:4px 0 8px">Search a movie or episode, then pick the part you want as its preview.</div>' +
+      '<input id="rcQ" class="rc-in" placeholder="Search title..." autocomplete="off" oninput="RC.typing()"><div id="rcRes"></div></div>' +
+      '<div class="rc-card"><b>Recent re-cuts</b><div id="rcJobs" class="rc-s">Loading...</div></div>' +
+      '<div class="rc-card"><b>Check all preview clips</b><div class="rc-s" style="margin:4px 0 8px">Finds clips that are missing or only a few KB (broken).</div><button class="rc-b" onclick="RC.scan()">Scan clips</button><div id="rcScan" style="margin-top:8px"></div></div>' +
+      '<div id="rcInt"><div class="rc-card rc-s">Loading integrations...</div></div>';
+    RC.loadJobs(); RC.loadInt();
+  };
+  var _tm = null;
+  RC.typing = function () { clearTimeout(_tm); _tm = setTimeout(RC.search, 350); };
+  RC.search = async function () {
+    var q = (Q('rcQ').value || '').trim(), out = Q('rcRes');
+    if (q.length < 2) { out.innerHTML = ''; return; }
+    out.innerHTML = '<div class="rc-s">Searching...</div>';
+    try {
+      var d = await api('/preview-titles?q=' + encodeURIComponent(q));
+      S.results = d.items || [];
+      out.innerHTML = S.results.length ? S.results.map(function (x, i) {
+        return '<div class="rc-row"><div class="rc-t"><div>' + esc(x.title) + '</div><div class="rc-s">' + esc(x.sub) + (x.sub ? ' · ' : '') + (x.previewKey ? 'has clip' : 'no clip yet') + '</div></div>' +
+          '<button class="rc-b g" onclick="RC.open(' + i + ')">Re-cut</button>' + (x.previewKey ? '<button class="rc-b" onclick="RC.cmp(' + i + ')">Compare</button>' : '') + '</div>';
+      }).join('') : '<div class="rc-s">No matches</div>';
+    } catch (e) { out.innerHTML = '<div class="rc-bad">' + esc(e.message) + '</div>'; }
+  };
+
+  function shell(title) {
+    RC.close();
+    var m = document.createElement('div'); m.id = 'rcM'; m.className = 'rc-m';
+    m.innerHTML = '<div class="rc-box"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>' + esc(title) + '</b><button class="rc-b" onclick="RC.close()">Close</button></div><div id="rcBody"></div></div>';
+    document.body.appendChild(m);
+    return Q('rcBody');
+  }
+  RC.close = function () {
+    S.tg++; clearTimeout(S.pt); S.pt = null; S.loop = false;
+    try { if (S.tv) { S.tv.pause(); S.tv.removeAttribute('src'); S.tv.load(); } } catch (e) {} S.tv = null;
+    var v = Q('rcV'); if (v) { try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {} }
+    var m = Q('rcM'); if (m) m.remove();
+  };
+  function clampWs(x) { var D = S.vd || 0; x = Math.max(0, x); return D ? Math.min(x, Math.max(0, D - S.wl)) : x; }
+  function paint(commit) {
+    var sel = Q('rcSel'); if (!sel) return;
+    sel.style.left = ((S.start - S.ws) / S.wl * 100) + '%';
+    sel.style.width = (S.dur / S.wl * 100) + '%';
+    if (document.activeElement !== Q('rcS')) Q('rcS').value = mmss(S.start);
+    if (document.activeElement !== Q('rcD')) Q('rcD').value = String(Math.round(S.dur));
+    Q('rcWL').textContent = mmss(S.ws); Q('rcWR').textContent = mmss(S.ws + S.wl);
+    Q('rcSum').innerHTML = 'Clip: <b>' + mmss(S.start) + '</b> to <b>' + mmss(S.start + S.dur) + '</b> (' + Math.round(S.dur) + 's)' + (S.custom ? '' : ' <span class="rc-warn">- app default position</span>');
+    if (commit) { var v = Q('rcV'); try { if (v && v.readyState > 0) v.currentTime = S.start; } catch (e) {} }
+  }
+  function ready(v) { return new Promise(function (res, rej) { if (v.readyState >= 1) return res(); var to = setTimeout(function () { rej(new Error('movie did not load')); }, 20000); v.onloadedmetadata = function () { clearTimeout(to); res(); }; v.onerror = function () { clearTimeout(to); rej(new Error('movie could not be read')); }; }); }
+  function seekTo(v, t) {
+    return new Promise(function (res, rej) {
+      var d = v.duration || t + 1, tt = Math.max(0, Math.min(t, d - 0.2));
+      if (Math.abs(v.currentTime - tt) < 0.05) return res();
+      var done = false, to = setTimeout(function () { if (!done) { done = true; v.onseeked = null; rej(new Error('seek timed out')); } }, 9000);
+      v.onseeked = function () { if (done) return; done = true; clearTimeout(to); res(); };
+      v.currentTime = tt;
+    });
+  }
+  async function thumbs() {
+    var gen = ++S.tg, th = Q('rcTh'), tv = S.tv; if (!th || !tv) return;
+    var N = 10, cvs = []; th.innerHTML = ''; Q('rcThMsg').textContent = '';
+    for (var i = 0; i < N; i++) { var cv = document.createElement('canvas'); cv.width = 96; cv.height = 54; th.appendChild(cv); cvs.push(cv); }
+    try { await ready(tv); } catch (e) { if (Q('rcThMsg')) Q('rcThMsg').textContent = 'Warning: ' + e.message; return; }
+    for (var j = 0; j < N; j++) {
+      if (gen !== S.tg || !Q('rcTh')) return;
+      try { await seekTo(tv, S.ws + (j + 0.5) * S.wl / N); cvs[j].getContext('2d').drawImage(tv, 0, 0, 96, 54); }
+      catch (e) { if (gen === S.tg && Q('rcThMsg')) Q('rcThMsg').textContent = 'Frames stopped (' + e.message + ') - this part of the file may be damaged'; return; }
+    }
+  }
+  function bind() {
+    var strip = Q('rcStrip'), sel = Q('rcSel'), L = Q('rcHL'), R = Q('rcHR'), mode = null, off = 0;
+    function tAt(e) { var r = strip.getBoundingClientRect(); return S.ws + Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * S.wl; }
+    function down(m) { return function (e) { e.preventDefault(); e.stopPropagation(); mode = m; try { e.target.setPointerCapture(e.pointerId); } catch (x) {} if (m === 'm') off = tAt(e) - S.start; S.custom = true; }; }
+    function move(e) {
+      if (!mode) return; var t = tAt(e), end = S.start + S.dur, D = S.vd || 1e9, wEnd = S.ws + S.wl;
+      if (mode === 'l') { var ns = Math.min(t, end - 3); ns = Math.max(ns, end - 90, S.ws); S.dur = end - ns; S.start = ns; }
+      else if (mode === 'r') { var ne = Math.max(t, S.start + 3); ne = Math.min(ne, S.start + 90, D, wEnd); S.dur = ne - S.start; }
+      else { S.start = Math.max(S.ws, Math.min(t - off, Math.min(wEnd, D) - S.dur)); }
+      paint(false);
+    }
+    function up() { if (mode) { mode = null; paint(true); } }
+    [[L, 'l'], [R, 'r'], [sel, 'm']].forEach(function (p) { p[0].onpointerdown = down(p[1]); p[0].onpointermove = move; p[0].onpointerup = up; p[0].onpointercancel = up; });
+    Q('rcS').onchange = function () { var t = parseT(this.value); if (isNaN(t) || t < 0) { paint(false); return; } S.start = S.vd ? Math.min(t, Math.max(0, S.vd - S.dur - 1)) : t; S.custom = true; if (S.start < S.ws || S.start > S.ws + S.wl - S.dur) { S.ws = clampWs(S.start - S.wl / 2); thumbs(); } paint(true); };
+    Q('rcD').onchange = function () { var d = Math.round(Number(this.value)); if (!isFinite(d)) { paint(false); return; } S.dur = Math.min(90, Math.max(3, d)); S.custom = true; paint(false); };
+    var v = Q('rcV'); v.ontimeupdate = function () { if (S.loop && v.currentTime >= S.start + S.dur) v.currentTime = S.start; };
+  }
+  RC.open = async function (i) {
+    var c = S.cur = S.results[i]; if (!c) return;
+    S.start = 0; S.dur = 30; S.custom = false; S.ws = 0; S.vd = 0; S.loop = false;
+    var b = shell('Re-cut: ' + c.title);
+    b.innerHTML =
+      '<div id="rcMsg" class="rc-s" style="margin:8px 0">Loading the movie...</div>' +
+      '<video id="rcV" controls playsinline preload="metadata" style="width:100%;max-height:40vh;background:#000;border-radius:10px"></video>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0"><button class="rc-b" onclick="RC.setStart()">Start here</button><button class="rc-b" onclick="RC.setEnd()">End here</button><button class="rc-b" onclick="RC.zoom()">Zoom strip here</button><button class="rc-b" onclick="RC.pan(-1)">&#9664;</button><button class="rc-b" onclick="RC.pan(1)">&#9654;</button><button class="rc-b" onclick="RC.playSel()">Play selection</button></div>' +
+      '<div id="rcStrip" class="rc-strip"><div id="rcTh" class="rc-th"></div><div id="rcSel" class="rc-sel"><div id="rcHL" class="rc-hd l"></div><div id="rcHR" class="rc-hd r"></div></div></div>' +
+      '<div style="display:flex;justify-content:space-between;gap:6px" class="rc-s"><span id="rcWL"></span><span id="rcThMsg"></span><span id="rcWR"></span></div>' +
+      '<div style="display:flex;gap:8px;margin:10px 0"><div style="flex:1"><div class="rc-s">Start (m:ss or seconds)</div><input id="rcS" class="rc-in"></div><div style="flex:1"><div class="rc-s">Length (3-90 s)</div><input id="rcD" class="rc-in" inputmode="numeric"></div></div>' +
+      '<div id="rcSum" style="margin:6px 0"></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rcGo" class="rc-b g" onclick="RC.go()">Cut this preview</button><button class="rc-b" onclick="RC.useDefault()">Use app default (28%)</button></div>' +
+      '<div id="rcJob" style="margin-top:12px"></div><div id="rcCmp"></div>';
+    bind(); paint(false);
+    try {
+      var d = await api('/preview-source-url?kind=' + encodeURIComponent(c.kind) + '&key=' + encodeURIComponent(c.key));
+      var v = Q('rcV'); if (!v) return;
+      v.onloadedmetadata = function () {
+        S.vd = v.duration || 0;
+        Q('rcMsg').textContent = 'Drag the gold handles, or play the movie and tap "Start here". Source length ' + mmss(S.vd) + '.';
+        if (!S.custom) S.start = Math.floor(S.vd * 0.28);
+        S.ws = clampWs(S.start - S.wl / 2); thumbs(); paint(false);
+      };
+      v.onerror = function () { Q('rcMsg').innerHTML = '<span class="rc-bad">This browser could not play the source movie (media error ' + (v.error ? v.error.code : 0) + ').</span> Type the start and length by hand and cut anyway.'; };
+      v.src = d.url;
+      var tv = S.tv = document.createElement('video'); tv.muted = true; tv.playsInline = true; tv.preload = 'auto'; tv.src = d.url;
+    } catch (e) { if (Q('rcMsg')) Q('rcMsg').innerHTML = '<span class="rc-bad">Could not get the movie: ' + esc(e.message) + '</span> You can still type the start and length by hand.'; }
+  };
+  RC.setStart = function () { var v = Q('rcV'); S.start = v.currentTime; S.custom = true; if (S.start < S.ws || S.start > S.ws + S.wl - S.dur) { S.ws = clampWs(S.start - S.wl / 2); thumbs(); } paint(false); };
+  RC.setEnd = function () { var e = Q('rcV').currentTime; if (e <= S.start + 2) { msg('Pick an end after the start'); return; } S.dur = Math.min(90, e - S.start); S.custom = true; paint(false); };
+  RC.zoom = function () { S.ws = clampWs(Q('rcV').currentTime - S.wl / 2); thumbs(); paint(false); };
+  RC.pan = function (d) { S.ws = clampWs(S.ws + d * S.wl * 0.6); thumbs(); paint(false); };
+  RC.playSel = function () { var v = Q('rcV'); if (S.loop) { S.loop = false; v.pause(); return; } S.loop = true; v.currentTime = S.start; v.play(); };
+  RC.useDefault = function () { S.custom = false; S.dur = 30; if (S.vd) S.start = Math.floor(S.vd * 0.28); S.ws = clampWs(S.start - S.wl / 2); thumbs(); paint(true); };
+
+  function jobHtml(j) {
+    var st = { queued: 'Queued', running: 'Cutting', done: 'Done', failed: 'Failed' }[j.status] || j.status;
+    var h = '<div class="rc-card"><b class="' + (j.status === 'done' ? 'rc-ok' : (j.status === 'failed' ? 'rc-bad' : 'rc-warn')) + '">' + st + '</b> · ' + esc(j.title) + ' · ' + (j.start == null ? 'app default position' : 'from ' + mmss(j.start)) + ', ' + j.dur + 's' + (j.attempts > 1 ? ' · attempt ' + j.attempts : '') + '<br>';
+    if (j.note) h += '<span class="rc-warn">' + esc(j.note) + '</span><br>';
+    if (j.firstFail && j.firstFail.length) h += '<div class="rc-s">First attempt: ' + esc(j.firstFail.join(' | ')) + '</div>';
+    if (j.status === 'failed') h += '<div class="rc-bad">' + esc(j.why || '') + '</div>' + (j.hint ? '<div class="rc-warn">' + esc(j.hint) + '</div>' : '');
+    if (j.warn) h += '<div class="rc-warn">' + esc(j.warn) + '</div>';
+    if (j.status === 'done') {
+      h += '<div class="rc-ok">New clip ' + (j.kb ? j.kb + ' KB' : '') + (j.linked ? ' · linked to the title' : '') + '</div>';
+      h += (j.purge && j.purge.ok) ? '<div class="rc-ok">Edge cache purged</div>' : '<div class="rc-bad">Edge purge failed: ' + esc((j.purge && j.purge.why) || 'unknown') + '</div>';
+    }
+    if (j.log && j.log.length) h += '<details><summary class="rc-s">Job log</summary><pre style="white-space:pre-wrap;font-size:.7rem;color:#aaa">' + esc(j.log.join('\n')) + '</pre></details>';
+    if (j.runUrl) h += '<a href="' + esc(j.runUrl) + '" target="_blank" rel="noopener" style="color:#7ab8ff;font-size:.8rem">Open run on GitHub</a>';
+    return h + '</div>';
+  }
+  RC.go = async function () {
+    var c = S.cur, j = Q('rcJob'), btn = Q('rcGo'); if (!c) return;
+    btn.disabled = true; j.innerHTML = '<div class="rc-s">Starting the job...</div>';
+    try {
+      var r = await api('/preview-recut', 'POST', { kind: c.kind, key: c.key, start: S.custom ? Math.round(S.start) : '', dur: Math.round(S.dur) });
+      S.jobId = r.id; S.jobInto = 'rcJob'; poll();
+    } catch (e) { j.innerHTML = '<div class="rc-card rc-bad">Could not start: ' + esc(e.message) + '</div>'; btn.disabled = false; }
+  };
+  async function poll() {
+    var id = S.jobId, into = Q(S.jobInto || 'rcJob'); if (!id || !into) return;
+    try {
+      var d = await api('/preview-recut/status?id=' + encodeURIComponent(id)), j = d.job;
+      into.innerHTML = jobHtml(j);
+      var b = Q('rcGo');
+      if (j.status === 'done') { if (b) b.disabled = false; RC.compare(j.kind, j.key, 'rcCmp'); RC.loadJobs(); return; }
+      if (j.status === 'failed') { if (b) b.disabled = false; RC.loadJobs(); return; }
+    } catch (e) { into.innerHTML = '<div class="rc-card rc-bad">Status check failed: ' + esc(e.message) + ' (retrying)</div>'; }
+    S.pt = setTimeout(poll, 4000);
+  }
+  RC.loadJobs = async function () {
+    var el = Q('rcJobs'); if (!el) return;
+    try {
+      var d = await api('/preview-recut/list'); S.jobs = d.jobs || [];
+      el.innerHTML = S.jobs.length ? S.jobs.map(function (j, i) { return '<div class="rc-row"><div class="rc-t"><div>' + esc(j.title) + '</div><div class="rc-s">' + esc(j.status) + ' · ' + new Date(j.at).toLocaleString() + '</div></div><button class="rc-b" onclick="RC.jobOpen(' + i + ')">Open</button></div>'; }).join('') : 'None yet';
+    } catch (e) { el.innerHTML = '<span class="rc-bad">' + esc(e.message) + '</span>'; }
+  };
+  RC.jobOpen = function (i) {
+    var j = S.jobs[i]; if (!j) return;
+    var b = shell('Re-cut: ' + j.title); b.innerHTML = '<div id="rcJob"></div><div id="rcCmp"></div>';
+    S.jobId = j.id; S.jobInto = 'rcJob'; poll();
+  };
+  RC.cmp = function (i) { var c = S.results[i]; if (!c) return; var b = shell('Compare: ' + c.title); b.innerHTML = '<div id="rcCmp"></div>'; RC.compare(c.kind, c.key, 'rcCmp'); };
+  RC.compare = async function (kind, key, into) {
+    var box = Q(into || 'rcCmp'); if (!box) return;
+    S.cmpRef = { kind: kind, key: key, into: into || 'rcCmp' };
+    box.innerHTML = '<div class="rc-card rc-s">Checking storage and the live edge...</div>';
+    try {
+      var d = await api('/preview-compare?kind=' + encodeURIComponent(kind) + '&key=' + encodeURIComponent(key));
+      var known = d.freshSize != null && d.liveSize != null, same = known && d.freshSize === d.liveSize;
+      var verdict = same ? '<div class="rc-ok">Match - viewers get the new clip.</div>' : (known ? '<div class="rc-warn">Different sizes: the live edge still has an older copy. <button class="rc-b" onclick="RC.purge()">Purge edge</button></div>' : '<div class="rc-bad">Could not compare: ' + esc(d.freshErr || d.liveErr || 'a size was not reported') + '</div>');
+      box.innerHTML = '<div class="rc-card"><b>Fresh vs live</b>' + verdict +
+        '<div style="display:flex;gap:8px;margin-top:8px"><div style="flex:1;min-width:0"><div class="rc-s">Fresh (storage) · ' + mb(d.freshSize) + '</div>' + (d.freshUrl ? '<video src="' + esc(d.freshUrl) + '" controls playsinline loop muted style="width:100%;border-radius:8px;background:#000"></video>' : '<div class="rc-bad">' + esc(d.freshErr || '') + '</div>') + '</div>' +
+        '<div style="flex:1;min-width:0"><div class="rc-s">Live (viewers) · ' + mb(d.liveSize) + (d.liveCache ? ' · ' + esc(d.liveCache) : '') + (d.liveAge ? ' · age ' + Math.round(Number(d.liveAge) / 60) + 'm' : '') + '</div><video src="' + esc(d.liveUrl + '?c=' + Date.now()) + '" controls playsinline loop muted style="width:100%;border-radius:8px;background:#000"></video></div></div></div>';
+    } catch (e) { box.innerHTML = '<div class="rc-card rc-bad">Compare failed: ' + esc(e.message) + '</div>'; }
+  };
+  RC.purge = async function () {
+    var r = S.cmpRef; if (!r) return;
+    try { await api('/preview-purge', 'POST', { kind: r.kind, key: r.key }); msg('Purge sent - rechecking in 4s'); setTimeout(function () { RC.compare(r.kind, r.key, r.into); }, 4000); }
+    catch (e) { var b = Q(r.into); if (b) b.insertAdjacentHTML('afterbegin', '<div class="rc-card rc-bad">Purge failed: ' + esc(e.message) + '</div>'); }
+  };
+  RC.scan = async function () {
+    var out = Q('rcScan'), off = 0, bad = [], total = 0;
+    out.innerHTML = '<div class="rc-s">Scanning...</div>';
+    try {
+      for (;;) {
+        var d = await api('/preview-scan?offset=' + off + '&n=25');
+        total = d.total; bad = bad.concat(d.bad || []); off = d.next;
+        out.innerHTML = '<div class="rc-s">Checked ' + Math.min(off, total) + ' / ' + total + ' · problems: ' + bad.length + '</div>';
+        if (!d.next || d.next >= d.total) break;
+      }
+    } catch (e) { out.innerHTML += '<div class="rc-bad">Scan stopped: ' + esc(e.message) + '</div>'; }
+    S.bad = bad;
+    out.innerHTML = '<div class="' + (bad.length ? 'rc-warn' : 'rc-ok') + '">Checked ' + total + ' clips · ' + (bad.length ? bad.length + ' broken' : 'none broken') + '</div>' + bad.map(function (x, i) {
+      return '<div class="rc-row"><div class="rc-t"><div>' + esc(x.title) + '</div><div class="rc-s">' + esc(x.why) + '</div></div><button class="rc-b g" onclick="RC.openBad(' + i + ')">Re-cut</button></div>';
+    }).join('');
+  };
+  RC.openBad = function (i) { var x = S.bad[i]; if (!x) return; S.results = [{ kind: x.kind, key: x.key, title: x.title, fileName: x.fileName, previewKey: x.pk }]; RC.open(0); };
+
+  var GH = [['token', 'Token'], ['repo', 'Repo'], ['workflow', 'Workflow file'], ['ref', 'Branch']];
+  var CF = [['email', 'Email'], ['key', 'Global API key'], ['token', 'Scoped token (optional)'], ['zone', 'Zone ID (optional)']];
+  function intCard(svc, title, d, defs) {
+    var h = '<div class="rc-card"><b>' + title + '</b>';
+    if (d.lastTest) h += '<div class="' + (d.lastTest.ok ? 'rc-ok' : 'rc-bad') + '" style="font-size:.8rem;margin:4px 0">' + esc(d.lastTest.msg) + ' <span class="rc-s">(' + new Date(d.lastTest.at).toLocaleString() + ')</span></div>';
+    if (d.updated) h += '<div class="rc-s">Updated ' + new Date(d.updated).toLocaleString() + '</div>';
+    defs.forEach(function (f) {
+      var x = d.fields[f[0]] || {};
+      h += '<div class="rc-row" style="align-items:flex-start"><div style="width:110px" class="rc-s">' + f[1] + '</div><div class="rc-t" id="rcV_' + svc + '_' + f[0] + '" data-masked="' + esc(x.v) + '" style="font-family:monospace;font-size:.8rem;word-break:break-all">' + (x.set ? esc(x.v) : '<span class="rc-s">not set' + (x.def ? ' (default: ' + esc(x.def) + ')' : '') + '</span>') + '</div>' + (x.secret && x.set ? '<button class="rc-b" onclick="RC.reveal(\'' + svc + '\',\'' + f[0] + '\')">Show</button>' : '') + '</div>';
+      h += '<input class="rc-in" id="rcI_' + svc + '_' + f[0] + '" placeholder="' + (x.set ? 'Replace (leave blank to keep)' : 'Enter value') + '" autocomplete="off" spellcheck="false" style="margin:0 0 6px">';
+    });
+    return h + '<div style="display:flex;gap:8px;margin-top:6px"><button class="rc-b g" onclick="RC.saveInt(\'' + svc + '\')">Save and test</button><button class="rc-b" onclick="RC.testInt(\'' + svc + '\')">Test saved</button></div></div>';
+  }
+  RC.loadInt = async function () {
+    var el = Q('rcInt'); if (!el) return;
+    try {
+      var d = await api('/integrations/overview');
+      el.innerHTML = (d.error ? '<div class="rc-card rc-bad">' + esc(d.error) + '</div>' : '') + intCard('github', 'GitHub (starts the clip job)', d.github, GH) + intCard('cloudflare', 'Cloudflare (clears the edge cache)', d.cloudflare, CF) +
+        '<div class="rc-card"><b>Other worker secrets</b> <span class="rc-s">(read-only, changed at deploy)</span><div style="margin-top:6px">' + d.secrets.map(function (s) { return '<span class="rc-s" style="display:inline-block;margin:2px 10px 2px 0">' + (s.set ? '&#10003; ' : '&#10007; ') + esc(s.name) + '</span>'; }).join('') + '</div></div>';
+    } catch (e) { el.innerHTML = '<div class="rc-card rc-bad">Integrations failed to load: ' + esc(e.message) + '</div>'; }
+  };
+  RC.reveal = async function (svc, k) {
+    var el = Q('rcV_' + svc + '_' + k); if (!el) return;
+    if (el.dataset.full === '1') { el.textContent = el.dataset.masked; el.dataset.full = '0'; return; }
+    try { var d = await api('/integrations/reveal?service=' + svc + '&field=' + k); el.textContent = d.value; el.dataset.full = '1'; setTimeout(function () { if (el.dataset.full === '1') { el.textContent = el.dataset.masked; el.dataset.full = '0'; } }, 20000); }
+    catch (e) { msg('Could not reveal: ' + e.message); }
+  };
+  RC.saveInt = async function (svc) {
+    var defs = svc === 'github' ? GH : CF, f = {}, any = false;
+    defs.forEach(function (p) { var el = Q('rcI_' + svc + '_' + p[0]), v = el ? el.value.trim() : ''; if (v) { f[p[0]] = v; any = true; } });
+    if (!any) { msg('Nothing to save - type a new value first'); return; }
+    if (svc === 'cloudflare') { if (f.token) f.mode = 'token'; else if (f.key) f.mode = 'global'; }
+    try { var r = await api('/integrations', 'POST', { service: svc, fields: f }); msg(r.test && r.test.ok ? 'Saved and working' : 'Saved, but the test failed - see the red message'); }
+    catch (e) { msg('Not saved: ' + e.message); }
+    RC.loadInt();
+  };
+  RC.testInt = async function (svc) {
+    try { await api('/integrations/test', 'POST', { service: svc }); } catch (e) { msg('Test failed: ' + e.message); }
+    RC.loadInt();
+  };
+})();
+
 
 async function studioPublish(id) {
   const g = Array.from(document.querySelectorAll('.stp-g-' + id + ':checked')).map(x => parseInt(x.value, 10));
