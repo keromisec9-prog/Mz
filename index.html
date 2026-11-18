@@ -2781,6 +2781,13 @@ async function studioPreviewClip(videoKey) {
   RC.setEnd = function () { var e = Q('rcV').currentTime; if (e <= S.start + 2) { msg('Pick an end after the start'); return; } S.dur = Math.min(90, e - S.start); S.custom = true; paint(false); };
   RC.zoom = function () { S.ws = clampWs(Q('rcV').currentTime - S.wl / 2); keepIn(); thumbs(); paint(false); };
   RC.pan = function (d) { S.ws = clampWs(S.ws + d * S.wl * 0.6); keepIn(); thumbs(); paint(false); };
+  RC.cancelJob = async function (id) {
+    if (!confirm('Cancel this re-cut?\n\nThe GitHub run will be stopped and the current preview clip stays as it is.')) return;
+    try {
+      var d = await api('/preview-recut/cancel', 'POST', { id: id });
+      msg(d.already ? 'That job had already finished' : 'Cancelled');
+    } catch (e) { msg(e.message); }
+  };
   RC.playSel = function () { var v = Q('rcV'); if (S.loop) { S.loop = false; v.pause(); return; } S.loop = true; v.currentTime = S.start; v.play(); };
   RC.useDefault = function () { S.custom = false; S.dur = 30; if (S.vd) S.start = Math.floor(S.vd * 0.28); S.ws = clampWs(S.start - S.wl / 2); thumbs(); paint(true); };
 
@@ -2788,6 +2795,7 @@ async function studioPreviewClip(videoKey) {
     var st = { queued: 'Queued', running: 'Cutting', done: 'Done', failed: 'Failed' }[j.status] || j.status;
     var h = '<div class="rc-card"><b class="' + (j.status === 'done' ? 'rc-ok' : (j.status === 'failed' ? 'rc-bad' : 'rc-warn')) + '">' + st + '</b> · ' + esc(j.title) + ' · ' + (j.start == null ? 'app default position' : 'from ' + mmss(j.start)) + ', ' + j.dur + 's' + (j.attempts > 1 ? ' · attempt ' + j.attempts : '') + '<br>';
     if (j.note) h += '<span class="rc-warn">' + esc(j.note) + '</span><br>';
+    if (j.status === 'queued' || j.status === 'running') h += '<button class="rc-b" style="margin:6px 0" onclick="RC.cancelJob(\'' + esc(j.id) + '\')">Cancel job</button>';
     if (j.firstFail && j.firstFail.length) h += '<div class="rc-s">First attempt: ' + esc(j.firstFail.join(' | ')) + '</div>';
     if (j.status === 'failed') h += '<div class="rc-bad">' + esc(j.why || '') + '</div>' + (j.hint ? '<div class="rc-warn">' + esc(j.hint) + '</div>' : '');
     if (j.warn) h += '<div class="rc-warn">' + esc(j.warn) + '</div>';
