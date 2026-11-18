@@ -2606,9 +2606,9 @@ async function studioPreviewClip(videoKey) {
       '.rc-box{max-width:760px;margin:0 auto}',
       '.rc-strip{position:relative;height:56px;margin:10px 0 2px;border-radius:8px;overflow:hidden;background:#111;touch-action:none;user-select:none}',
       '.rc-th{display:flex;height:100%}.rc-th canvas{flex:1;min-width:0;height:100%;background:#1a1a1a}',
-      '.rc-sel{position:absolute;top:0;bottom:0;border:3px solid var(--gold,#e5b93c);box-sizing:border-box;background:rgba(229,185,60,.14);touch-action:none;cursor:grab}',
-      '.rc-hd{position:absolute;top:-3px;bottom:-3px;width:22px;background:var(--gold,#e5b93c);touch-action:none;cursor:ew-resize}',
-      '.rc-hd.l{left:-3px;border-radius:8px 0 0 8px}.rc-hd.r{right:-3px;border-radius:0 8px 8px 0}',
+      '.rc-sel{position:absolute;top:0;bottom:0;border:2px solid var(--gold,#e5b93c);box-sizing:border-box;background:rgba(229,185,60,.14);touch-action:none;cursor:grab}',
+      '.rc-hd{position:absolute;top:-2px;bottom:-2px;width:14px;background:var(--gold,#e5b93c);touch-action:none;cursor:ew-resize}',
+      '.rc-hd.l{left:-2px;border-radius:6px 0 0 6px}.rc-hd.r{right:-2px;border-radius:0 6px 6px 0}.rc-hd:before{content:"";position:absolute;top:0;bottom:0;left:-6px;right:-6px}',
       '.rc-ok{color:#6fdc8c}.rc-bad{color:#ff7a7a}.rc-warn{color:#ffc857}'
     ].join('');
     document.head.appendChild(z);
@@ -2692,18 +2692,57 @@ async function studioPreviewClip(videoKey) {
       catch (e) { if (gen === S.tg && Q('rcThMsg')) Q('rcThMsg').textContent = 'Frames stopped (' + e.message + ') - this part of the file may be damaged'; return; }
     }
   }
+  function keepIn() {
+    var D = S.vd || 1e9, hi = Math.min(S.ws + S.wl, D);
+    if (S.dur > hi - S.ws) S.dur = Math.max(3, hi - S.ws);
+    var ns = Math.max(S.ws, Math.min(S.start, hi - S.dur));
+    if (ns !== S.start) { S.start = ns; S.custom = true; }
+  }
   function bind() {
     var strip = Q('rcStrip'), sel = Q('rcSel'), L = Q('rcHL'), R = Q('rcHR'), mode = null, off = 0;
-    function tAt(e) { var r = strip.getBoundingClientRect(); return S.ws + Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * S.wl; }
-    function down(m) { return function (e) { e.preventDefault(); e.stopPropagation(); mode = m; try { e.target.setPointerCapture(e.pointerId); } catch (x) {} if (m === 'm') off = tAt(e) - S.start; S.custom = true; }; }
-    function move(e) {
-      if (!mode) return; var t = tAt(e), end = S.start + S.dur, D = S.vd || 1e9, wEnd = S.ws + S.wl;
+    var lastX = 0, lastDx = 0, auto = null, adir = 0, ak = 0, th = null, scrolled = false;
+    function tAt(e) {
+      if (e && e.clientX != null) { lastDx = e.clientX - lastX; lastX = e.clientX; }
+      var r = strip.getBoundingClientRect();
+      return S.ws + Math.min(1, Math.max(0, (lastX - r.left) / r.width)) * S.wl;
+    }
+    function stopAuto() { if (auto) { clearInterval(auto); auto = null; } adir = 0; ak = 0; }
+    function schedThumbs() { clearTimeout(th); th = setTimeout(function () { thumbs(); }, 350); }
+    function want() {
+      var r = strip.getBoundingClientRect(), raw = S.ws + ((lastX - r.left) / r.width) * S.wl, wEnd = S.ws + S.wl, lo = -1e9, hi = -1e9;
+      if (mode === 'l') lo = S.ws - raw;
+      else if (mode === 'r') hi = raw - wEnd;
+      else { var rs = raw - off; lo = S.ws - rs; hi = rs + S.dur - wEnd; }
+      var m = S.wl * 0.04, f = S.wl * 0.15;
+      if (lo > -m) return -Math.min(1, 0.3 + (lo + m) / f);
+      if (hi > -m) return Math.min(1, 0.3 + (hi + m) / f);
+      return 0;
+    }
+    function edge() {
+      var w = want();
+      if (!w) { stopAuto(); return; }
+      if (!auto) { if ((w < 0 && lastDx > -1) || (w > 0 && lastDx < 1)) return; }
+      else if ((w < 0 && lastDx > 2) || (w > 0 && lastDx < -2)) { stopAuto(); return; }
+      adir = w < 0 ? -1 : 1; ak = Math.abs(w);
+      if (!auto) auto = setInterval(autoStep, 90);
+    }
+    function autoStep() {
+      if (!mode) { stopAuto(); return; }
+      if ((mode === 'l' || mode === 'r') && S.dur >= 89.9) return;
+      var nws = clampWs(S.ws + adir * ak * S.wl * 0.05);
+      if (nws === S.ws) return;
+      S.ws = nws; scrolled = true; apply(); schedThumbs();
+    }
+    function down(m) { return function (e) { e.preventDefault(); e.stopPropagation(); mode = m; lastX = e.clientX; lastDx = 0; scrolled = false; stopAuto(); try { e.target.setPointerCapture(e.pointerId); } catch (x) {} if (m === 'm') off = tAt(e) - S.start; S.custom = true; }; }
+    function move(e) { if (!mode) return; tAt(e); apply(); edge(); }
+    function apply() {
+      if (!mode) return; var t = tAt(), end = S.start + S.dur, D = S.vd || 1e9, wEnd = S.ws + S.wl;
       if (mode === 'l') { var ns = Math.min(t, end - 3); ns = Math.max(ns, end - 90, S.ws); S.dur = end - ns; S.start = ns; }
       else if (mode === 'r') { var ne = Math.max(t, S.start + 3); ne = Math.min(ne, S.start + 90, D, wEnd); S.dur = ne - S.start; }
       else { S.start = Math.max(S.ws, Math.min(t - off, Math.min(wEnd, D) - S.dur)); }
       paint(false);
     }
-    function up() { if (mode) { mode = null; paint(true); } }
+    function up() { if (mode) { mode = null; stopAuto(); clearTimeout(th); if (scrolled) { scrolled = false; thumbs(); } paint(true); } }
     [[L, 'l'], [R, 'r'], [sel, 'm']].forEach(function (p) { p[0].onpointerdown = down(p[1]); p[0].onpointermove = move; p[0].onpointerup = up; p[0].onpointercancel = up; });
     Q('rcS').onchange = function () { var t = parseT(this.value); if (isNaN(t) || t < 0) { paint(false); return; } S.start = S.vd ? Math.min(t, Math.max(0, S.vd - S.dur - 1)) : t; S.custom = true; if (S.start < S.ws || S.start > S.ws + S.wl - S.dur) { S.ws = clampWs(S.start - S.wl / 2); thumbs(); } paint(true); };
     Q('rcD').onchange = function () { var d = Math.round(Number(this.value)); if (!isFinite(d)) { paint(false); return; } S.dur = Math.min(90, Math.max(3, d)); S.custom = true; paint(false); };
@@ -2740,8 +2779,8 @@ async function studioPreviewClip(videoKey) {
   };
   RC.setStart = function () { var v = Q('rcV'); S.start = v.currentTime; S.custom = true; if (S.start < S.ws || S.start > S.ws + S.wl - S.dur) { S.ws = clampWs(S.start - S.wl / 2); thumbs(); } paint(false); };
   RC.setEnd = function () { var e = Q('rcV').currentTime; if (e <= S.start + 2) { msg('Pick an end after the start'); return; } S.dur = Math.min(90, e - S.start); S.custom = true; paint(false); };
-  RC.zoom = function () { S.ws = clampWs(Q('rcV').currentTime - S.wl / 2); thumbs(); paint(false); };
-  RC.pan = function (d) { S.ws = clampWs(S.ws + d * S.wl * 0.6); thumbs(); paint(false); };
+  RC.zoom = function () { S.ws = clampWs(Q('rcV').currentTime - S.wl / 2); keepIn(); thumbs(); paint(false); };
+  RC.pan = function (d) { S.ws = clampWs(S.ws + d * S.wl * 0.6); keepIn(); thumbs(); paint(false); };
   RC.playSel = function () { var v = Q('rcV'); if (S.loop) { S.loop = false; v.pause(); return; } S.loop = true; v.currentTime = S.start; v.play(); };
   RC.useDefault = function () { S.custom = false; S.dur = 30; if (S.vd) S.start = Math.floor(S.vd * 0.28); S.ws = clampWs(S.start - S.wl / 2); thumbs(); paint(true); };
 
